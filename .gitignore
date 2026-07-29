@@ -6,3 +6,6 @@
 .gemini/settings.json
 .local/
 .gemini/
+
+.cursor/mcp.json
+mcp.json

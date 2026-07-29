@@ -2,42 +2,42 @@
   "mcpServers": {
     "aap-mcp-job-mgmt": {
       "type": "http",
-      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/job_management/mcp",
+      "url": "https://MCP_BASE_HOST/job_management/mcp",
       "headers": {
         "Authorization": "Bearer ${env:AAP_MCP_TOKEN}"
       }
     },
     "aap-mcp-inventory-mgmt": {
       "type": "http",
-      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/inventory_management/mcp",
+      "url": "https://MCP_BASE_HOST/inventory_management/mcp",
       "headers": {
         "Authorization": "Bearer ${env:AAP_MCP_TOKEN}"
       }
     },
     "aap-mcp-system-monitor": {
       "type": "http",
-      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/system_monitoring/mcp",
+      "url": "https://MCP_BASE_HOST/system_monitoring/mcp",
       "headers": {
         "Authorization": "Bearer ${env:AAP_MCP_TOKEN}"
       }
     },
     "aap-mcp-user-mgmt": {
       "type": "http",
-      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/user_management/mcp",
+      "url": "https://MCP_BASE_HOST/user_management/mcp",
       "headers": {
         "Authorization": "Bearer ${env:AAP_MCP_TOKEN}"
       }
     },
     "aap-mcp-security": {
       "type": "http",
-      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/security_compliance/mcp",
+      "url": "https://MCP_BASE_HOST/security_compliance/mcp",
       "headers": {
         "Authorization": "Bearer ${env:AAP_MCP_TOKEN}"
       }
     },
     "aap-mcp-platform-config": {
       "type": "http",
-      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/platform_configuration/mcp",
+      "url": "https://MCP_BASE_HOST/platform_configuration/mcp",
       "headers": {
         "Authorization": "Bearer ${env:AAP_MCP_TOKEN}"
       }
