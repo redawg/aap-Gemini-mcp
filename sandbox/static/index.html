@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AAP MCP Sandbox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a222c;
+      --panel-2: #222c38;
+      --ink: #f2f4f7;
+      --muted: #9aa7b5;
+      --line: #2e3a48;
+      --accent: #ee0000;
+      --accent-2: #f0f0f0;
+      --ok: #3d9a5f;
+      --warn: #c58b2d;
+      --radius: 10px;
+      --font: "IBM Plex Sans", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #2a1520 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #132033 0%, transparent 50%),
+        var(--bg);
+      color: var(--ink);
+      font-family: var(--font);
+    }
+    body {
+      display: grid;
+      place-items: stretch;
+      min-height: 100vh;
+    }
+    .shell {
+      width: min(960px, 100%);
+      margin: 0 auto;
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 88%, transparent);
+      backdrop-filter: blur(8px);
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand {
+      display: flex;
+      flex-direction: column;
+      gap: .15rem;
+    }
+    .brand strong {
+      font-size: 1.05rem;
+      letter-spacing: .01em;
+    }
+    .brand span {
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    .meta {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    button, .btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--ink);
+      border-radius: 999px;
+      padding: .45rem .9rem;
+      font: 500 .9rem var(--font);
+      cursor: pointer;
+    }
+    button.primary {
+      background: var(--accent);
+      border-color: color-mix(in srgb, var(--accent) 70%, #000);
+      color: #fff;
+    }
+    button:disabled {
+      opacity: .55;
+      cursor: wait;
+    }
+    #login {
+      display: none;
+      place-items: center;
+      padding: 2rem 1.25rem;
+    }
+    #login.show { display: grid; }
+    .card {
+      width: min(420px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 4px);
+      padding: 1.5rem;
+      display: grid;
+      gap: 1rem;
+    }
+    .card h1 {
+      margin: 0;
+      font-size: 1.35rem;
+    }
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    label {
+      display: grid;
+      gap: .4rem;
+      font-size: .9rem;
+      color: var(--muted);
+    }
+    input[type="password"], textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--bg);
+      color: var(--ink);
+      border-radius: 8px;
+      padding: .7rem .8rem;
+      font: 400 1rem var(--font);
+    }
+    #chat {
+      display: none;
+      grid-template-rows: 1fr auto;
+      min-height: 0;
+    }
+    #chat.show { display: grid; }
+    #messages {
+      overflow: auto;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: .9rem;
+    }
+    .msg {
+      max-width: 85%;
+      padding: .85rem 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      white-space: pre-wrap;
+      line-height: 1.45;
+      font-size: .95rem;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: #243041;
+    }
+    .msg.assistant {
+      align-self: flex-start;
+      background: #182029;
+    }
+    .msg .tools {
+      margin-top: .65rem;
+      padding-top: .65rem;
+      border-top: 1px dashed var(--line);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .75rem;
+    }
+    .composer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: .6rem;
+      padding: 1rem 1.25rem 1.25rem;
+      border-top: 1px solid var(--line);
+      background: color-mix(in srgb, var(--panel) 92%, #000);
+    }
+    textarea {
+      min-height: 52px;
+      max-height: 160px;
+      resize: vertical;
+    }
+    .error {
+      color: #ffb4b4;
+      font-size: .9rem;
+    }
+    .hints {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+      padding: 0 1.25rem .85rem;
+    }
+    .hints button {
+      font-size: .8rem;
+      padding: .3rem .7rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <strong>AAP MCP Sandbox</strong>
+        <span>Gemini chat with AAP MCP, Google Search, and code tools</span>
+      </div>
+      <div class="meta">
+        <span id="who"></span>
+        <button id="resetBtn" type="button" hidden>Reset chat</button>
+        <button id="logoutBtn" type="button" hidden>Log out</button>
+      </div>
+    </header>
+
+    <section id="login">
+      <form class="card" id="loginForm">
+        <h1>Sign in</h1>
+        <p>Workshop sandbox for chatting with Gemini while it calls live AAP MCP tools (jobs, inventory, monitoring, and more).</p>
+        <label>
+          Sandbox password
+          <input id="password" type="password" autocomplete="current-password" required />
+        </label>
+        <button class="primary" type="submit">Enter sandbox</button>
+        <div class="error" id="loginError" hidden></div>
+      </form>
+    </section>
+
+    <section id="chat">
+      <div id="messages"></div>
+      <div class="hints">
+        <button type="button" data-q="List my AAP job templates.">Job templates</button>
+        <button type="button" data-q="List inventories and host counts.">Inventories</button>
+        <button type="button" data-q="Show recent jobs and their status.">Recent jobs</button>
+        <button type="button" data-q="Search the web for Ansible Automation Platform MCP server overview and summarize.">Web: AAP MCP</button>
+        <button type="button" data-q="Using web search, what is new in recent Ansible Automation Platform releases? Keep it short.">Web: AAP news</button>
+      </div>
+      <form class="composer" id="chatForm">
+        <textarea id="prompt" placeholder="Ask about AAP jobs, inventories, users…" rows="2"></textarea>
+        <button class="primary" id="sendBtn" type="submit">Send</button>
+      </form>
+    </section>
+  </div>
+
+  <script>
+    const AUTHED = {{AUTHED}} === true || "{{AUTHED}}" === "true";
+    const EMAIL = "{{EMAIL}}";
+    const login = document.getElementById("login");
+    const chat = document.getElementById("chat");
+    const messages = document.getElementById("messages");
+    const who = document.getElementById("who");
+    const loginError = document.getElementById("loginError");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const sendBtn = document.getElementById("sendBtn");
+
+    function showAuthed(email) {
+      login.classList.remove("show");
+      chat.classList.add("show");
+      logoutBtn.hidden = false;
+      resetBtn.hidden = false;
+      who.textContent = email || "signed in";
+    }
+    function showLogin() {
+      chat.classList.remove("show");
+      login.classList.add("show");
+      logoutBtn.hidden = true;
+      resetBtn.hidden = true;
+      who.textContent = "";
+      messages.innerHTML = "";
+    }
+
+    function addMessage(role, text, tools) {
+      const el = document.createElement("div");
+      el.className = `msg ${role}`;
+      el.textContent = text;
+      if (tools && tools.length) {
+        const t = document.createElement("div");
+        t.className = "tools";
+        t.textContent = "Tools: " + tools.map(x => `${x.server}/${x.tool}`).join(", ");
+        el.appendChild(t);
+      }
+      messages.appendChild(el);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loginError.hidden = true;
+      const password = document.getElementById("password").value;
+      const res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        loginError.textContent = data.detail || "Login failed";
+        loginError.hidden = false;
+        return;
+      }
+      const data = await res.json();
+      showAuthed(data.email);
+      addMessage("assistant", "Signed in. Ask me to list job templates, inventories, or recent jobs.");
+    });
+
+    logoutBtn.addEventListener("click", async () => {
+      await fetch("/api/logout", { method: "POST" });
+      showLogin();
+    });
+
+    resetBtn.addEventListener("click", async () => {
+      await fetch("/api/reset", { method: "POST" });
+      messages.innerHTML = "";
+      addMessage("assistant", "Conversation cleared.");
+    });
+
+    async function sendMessage(text) {
+      if (!text.trim()) return;
+      addMessage("user", text);
+      sendBtn.disabled = true;
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          addMessage("assistant", data.detail || "Request failed");
+        } else {
+          addMessage("assistant", data.reply || "(empty)", data.tools_used || []);
+        }
+      } catch (err) {
+        addMessage("assistant", String(err));
+      } finally {
+        sendBtn.disabled = false;
+      }
+    }
+
+    document.getElementById("chatForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const box = document.getElementById("prompt");
+      const text = box.value;
+      box.value = "";
+      await sendMessage(text);
+    });
+
+    document.querySelectorAll(".hints button").forEach((btn) => {
+      btn.addEventListener("click", () => sendMessage(btn.dataset.q));
+    });
+
+    if (AUTHED) {
+      showAuthed(EMAIL);
+      addMessage("assistant", "Welcome back. Try “List my AAP job templates.”");
+    } else {
+      showLogin();
+    }
+  </script>
+</body>
+</html>

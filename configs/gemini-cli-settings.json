@@ -1,4 +1,9 @@
 {
+  "security": {
+    "auth": {
+      "selectedType": "vertex-ai"
+    }
+  },
   "mcpServers": {
     "aap-job-mgmt": {
       "httpUrl": "https://MCP_BASE_HOST/job_management/mcp",

@@ -1,10 +1,16 @@
 # Deploy AAP MCP and connect Gemini
 
-End-to-end runbook: enable the Ansible Automation Platform (AAP) MCP server, authenticate, then connect a Gemini agent (CLI or Agent Platform).
+End-to-end runbook: enable the Ansible Automation Platform (AAP) MCP server, authenticate, then connect clients (Cursor / Gemini).
+
+**Gemini-specific guide (CLI, Agent Platform, trusted TLS, browser sandbox):**  
+→ **[CONNECT-GEMINI.md](CONNECT-GEMINI.md)**
 
 Official AAP reference: [Deploy the MCP server on Ansible Automation Platform](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/extending_ansible_automation_platform_with_ai/extend-assembly_deploying_ansible_mcp_server)
 
-**OpenShift deploy how-to:** [DEPLOY-MCP-OPENSHIFT.md](DEPLOY-MCP-OPENSHIFT.md)
+**Platform deploy how-to:**
+
+- OpenShift or existing Podman MCP: [DEPLOY-MCP.md](DEPLOY-MCP.md)
+- Greenfield RHEL containerized AAP + MCP: [DEPLOY-AAP-CONTAINERIZED.md](DEPLOY-AAP-CONTAINERIZED.md)
 
 ---
 
@@ -21,13 +27,12 @@ Collect these **before** starting. Without each item, a later step will block.
 | AAP console URL (gateway) | e.g. `https://aap-aap.apps.<cluster>/` |
 | Network reachability to AAP from your laptop | Token create + API checks |
 
-### B. OpenShift (operator-based AAP)
+### B. Platform host (pick one)
 
-| Need | Why |
-|------|-----|
-| OpenShift console **or** `oc` login to the **same** cluster that hosts AAP | Edit `AnsibleAutomationPlatform` CR / view routes |
-| Permission to edit the AAP operator CR in the AAP namespace | Set `spec.mcp` |
-| Ability to list Routes / Deployments in that namespace | Copy MCP URL; confirm pods healthy |
+| Path | Need |
+|------|------|
+| **OpenShift** | `oc`/console on the **same** cluster as AAP; edit `AnsibleAutomationPlatform` / read MCP route |
+| **Podman on RHEL** | RHEL 9/10 with AAP containerized installer; inventory access; firewall for **8448** |
 
 ### C. Gemini (pick one or both)
 
@@ -53,7 +58,7 @@ Store locally in `.env` (gitignored). Templates: `configs/.env.example`.
 ```
 You → Gemini (CLI or Agent Platform)
         → HTTPS MCP tool call + Bearer token
-          → AAP MCP server (OpenShift route)
+          → AAP MCP server (OpenShift route OR host:8448 on Podman/RHEL)
             → AAP Controller / Gateway APIs (RBAC of token)
               → jobs, inventory, etc.
 ```
@@ -71,14 +76,17 @@ Start **read-only** unless you intentionally want Gemini to launch jobs.
 
 ```
 - [ ] 0. Confirm AAP is up (gateway + controller API)
-- [ ] 1. Access OpenShift (`oc` / console)
-- [ ] 2. Enable MCP on AAP (operator CR + AnsibleMCPServer if needed)
-- [ ] 3. Wait for MCP pods / route; record MCP_BASE_URL
-- [ ] 4. Create AAP API token → AAP_MCP_TOKEN
+- [ ] 1. Choose deploy path: OpenShift OR Podman on RHEL (see deploy docs)
+- [ ] 2. Enable MCP
+- [ ] 3. Wait for MCP; record MCP_BASE_URL (route or :8448)
+- [ ] 4. Create dedicated MCP user + AAP_MCP_TOKEN
 - [ ] 5. Smoke-test MCP HTTPS endpoint
+- [ ] 5b. (Gemini/GCP) Ensure publicly trusted TLS; prefer :443 — see CONNECT-GEMINI.md
 - [ ] 6a. Configure Gemini CLI  and/or
-- [ ] 6b. Create Gemini Agent with mcp_server tools
-- [ ] 7. Verify with sample prompts
+- [ ] 6b. Create Gemini Agent Platform agent  and/or
+- [ ] 6c. Configure Cursor ~/.cursor/mcp.json  and/or
+- [ ] 6d. Deploy browser chat sandbox (sandbox/)
+- [ ] 7. Verify with sample prompts / list tools
 ```
 
 ---
@@ -93,17 +101,15 @@ curl -sk -u "admin:${AAP_PASSWORD}" \
 
 Expect HTTP 200 and a controller `version`. Gateway root: `${AAP_URL%/}/api/` should list `controller`, `gateway`, etc.
 
-**MCP is not enabled** if gateway `service_types` only show `gateway`, `controller`, `hub`, `eda` (no MCP) and there is no `*-mcp` OpenShift route.
+**MCP is not enabled** if gateway `service_types` only show `gateway`, `controller`, `hub`, `eda` (no MCP), and there is no `*-mcp` OpenShift route **or** no MCP listener on `:8448` (Podman/RHEL).
 
 ---
 
-## Step 1 — Access the cluster (OpenShift)
+## Step 1 — Access the platform host
 
-Console:
+### OpenShift
 
-`https://console-openshift-console.apps.<cluster>/`
-
-CLI:
+Console: `https://console-openshift-console.apps.<cluster>/`
 
 ```bash
 oc login https://api.<cluster>:6443 -u kubeadmin
@@ -114,22 +120,27 @@ oc get ansibleautomationplatform -A
 oc get route -A | grep -i mcp || true
 ```
 
-You must be on the **same** cluster that serves the AAP URL (hostname `apps.` prefix must match).
+You must be on the **same** cluster that serves the AAP URL.
+
+### Podman on RHEL
+
+SSH to the AAP host. Confirm Podman and the containerized installer inventory are available:
+
+```bash
+podman ps
+ls /path/to/aap-installer/inventory   # path varies by install
+```
 
 ---
 
 ## Step 2 — Deploy / enable the MCP server
 
-Detailed steps: [DEPLOY-MCP-OPENSHIFT.md](DEPLOY-MCP-OPENSHIFT.md).
+Full procedures: [DEPLOY-MCP.md](DEPLOY-MCP.md) (OpenShift **or** Podman on RHEL). Summaries below.
 
-1. Find the AAP instance:
+### OpenShift (summary)
 
-```bash
-oc get ansibleautomationplatform -A
-# note NAME and NAMESPACE
-```
-
-2. Enable MCP on the platform CR (start read-only):
+1. Find the AAP instance: `oc get ansibleautomationplatform -A`
+2. Enable MCP (read-only first):
 
 ```bash
 NS=aap
@@ -143,59 +154,30 @@ spec:
 '
 ```
 
-Or in Console: **Operators → Installed Operators → Ansible Automation Platform →** your instance → **YAML**, add under `spec:`:
+3. If `AnsibleMCPServer` does not appear, apply it with `public_base_url` = AAP gateway URL (see [DEPLOY-MCP.md](DEPLOY-MCP.md)).
+4. Confirm: `oc -n "$NS" rollout status deploy/aap-mcp --timeout=180s`
+5. Changing write mode after deploy: delete/recreate `AnsibleMCPServer`.
 
-```yaml
-spec:
-  mcp:
-    disabled: false
-    allow_write_operations: false
+Prefer a CA bundle (`bundle_cacert_secret`) over `IGNORE_CERTIFICATE_ERRORS`.
+
+### Podman on RHEL (summary)
+
+1. Add to installer inventory:
+
+```ini
+[ansiblemcp]
+aap.example.com
+
+[all:vars]
+mcp_allow_write_operations=false
+mcp_ignore_certificate_errors=false
+mcp_tls_cert=/path/to/tls.crt
+mcp_tls_key=/path/to/tls.key
 ```
 
-3. If `AnsibleMCPServer` does **not** appear within a few minutes, create it directly (AAP 2.6 Lightspeed/MCP operator reconciles this CR). Use the **AAP gateway** URL as `public_base_url`:
-
-```bash
-AAP_HOST=$(oc -n "$NS" get route aap -o jsonpath='{.spec.host}')
-
-cat <<EOF | oc apply -f -
-apiVersion: mcpserver.ansible.com/v1alpha1
-kind: AnsibleMCPServer
-metadata:
-  name: aap-mcp
-  namespace: ${NS}
-spec:
-  public_base_url: "https://${AAP_HOST}"
-  allow_write_operations: false
-  # Optional if MCP→AAP TLS fails with self-signed/custom CA:
-  # extra_settings:
-  #   - setting: IGNORE_CERTIFICATE_ERRORS
-  #     value: true
-EOF
-```
-
-The Lightspeed operator (`ansible-lightspeed-operator-controller-manager`) runs the `mcpserver` role and creates Deployment, Service, and Route.
-
-4. Confirm MCP workloads:
-
-```bash
-oc -n "$NS" get ansiblemcpserver
-oc -n "$NS" rollout status deploy/aap-mcp --timeout=180s
-oc -n "$NS" get deploy,pods,route | grep -i mcp
-```
-
-5. If you **change** `allow_write_operations` after MCP already exists, delete the `AnsibleMCPServer` CR and recreate it (required by Red Hat docs).
-
-### Optional TLS / self-signed
-
-Prefer mounting a CA (`bundle_cacert_secret` on `AnsibleMCPServer`) over disabling verification. Last resort:
-
-```yaml
-spec:
-  mcp:
-    extra_settings:
-      - setting: IGNORE_CERTIFICATE_ERRORS
-        value: true
-```
+2. Re-run `./setup.sh` (or your bundle’s install/upgrade command).
+3. Confirm: `podman ps | grep -i mcp` → base URL `https://<host>:8448`.
+4. Open **8448/tcp** from Gemini clients. Changing write mode: set `mcp_allow_write_operations=true` and re-run the installer.
 
 ---
 
@@ -204,11 +186,14 @@ spec:
 | Install | How to get it |
 |---------|----------------|
 | OpenShift | `oc -n "$NS" get route aap-mcp -o jsonpath='https://{.spec.host}{"\n"}'` or Console → **Networking → Routes** → Location for `aap-mcp` |
+| Podman on RHEL | `https://<aap-host>:8448` (after `podman ps` shows the MCP container) |
 
 Export:
 
 ```bash
-export MCP_BASE_URL='https://<mcp-host>'   # no trailing slash
+export MCP_BASE_URL='https://<mcp-host>'          # OpenShift route, no trailing slash
+# or:
+export MCP_BASE_URL='https://aap.example.com:8448' # Podman on RHEL
 ```
 
 ### Toolset URLs
@@ -246,38 +231,70 @@ Prefer **per-toolset** URLs for Gemini (smaller tool lists, clearer auth boundar
 
 ---
 
-## Step 4 — Create an AAP API token
+## Step 4 — Create a dedicated MCP user and API token
 
-### UI
+Prefer a **dedicated service account** (not shared `admin`) so you can rotate tokens and limit blast radius.
 
-1. Log into the **AAP gateway** URL as the integration user (prefer a dedicated service account with least privilege).
+### 4a. Create user (UI)
+
+1. Log into the AAP **gateway** as platform admin.
+2. **Access Management → Users → Create user**.
+3. Set username (e.g. `mcp-service`), password, and grant **Superuser** (or least-privilege org/inventory roles for production).
+4. Optionally assign **Organization Admin** on the Default (or target) organization.
+
+### 4b. Create user (gateway API)
+
+```bash
+export AAP_URL='https://aap.example.com'
+export AAP_PASSWORD='…'          # platform admin
+export MCP_USER='mcp-service'
+export MCP_USER_PASSWORD='…'      # strong password
+
+curl -sk -u "admin:${AAP_PASSWORD}" \
+  -H 'Content-Type: application/json' \
+  -d "{\"username\":\"${MCP_USER}\",\"password\":\"${MCP_USER_PASSWORD}\",\"email\":\"mcp-service@example.com\",\"is_superuser\":true}" \
+  "${AAP_URL%/}/api/gateway/v1/users/"
+```
+
+Assign **Organization Admin** (role definition id varies by install — list with `/api/gateway/v1/role_definitions/?search=Organization`):
+
+```bash
+# Example: role_definition id for "Organization Admin", object_id = Default org id
+curl -sk -u "admin:${AAP_PASSWORD}" \
+  -H 'Content-Type: application/json' \
+  -d '{"user":<USER_ID>,"role_definition":<ORG_ADMIN_ROLE_ID>,"object_id":1}' \
+  "${AAP_URL%/}/api/gateway/v1/role_user_assignments/"
+```
+
+### 4c. Create API token (UI)
+
+1. Log in as the MCP user (or admin creating a token for that user, if your UI allows).
 2. **Access Management → Users →** select user → **Tokens → Create token**.
-3. Application: leave blank for a personal access token (or pick an OAuth app).
-4. Scope: **Read** (safe) or **Write** (only if MCP write is enabled and you need launches).
-5. Copy the token **once**. Export:
+3. Scope: **Read** (safe) or **Write** (only if MCP write is enabled and you need launches).
+4. Copy the token **once**. Export:
 
 ```bash
 export AAP_MCP_TOKEN='paste-here'
 ```
 
-### API (gateway)
+### 4d. Create API token (gateway API as the MCP user)
 
 ```bash
-curl -sk -u "admin:${AAP_PASSWORD}" \
+curl -sk -u "${MCP_USER}:${MCP_USER_PASSWORD}" \
   -H 'Content-Type: application/json' \
-  -d '{"description":"gemini-mcp","scope":"write"}' \
+  -d '{"description":"cursor-gemini-mcp","scope":"write"}' \
   "${AAP_URL%/}/api/gateway/v1/tokens/"
 ```
 
-Use the returned `token` value as `AAP_MCP_TOKEN`.
+Use the returned `token` value as `AAP_MCP_TOKEN`. Never commit it.
 
 ---
 
 ## Step 5 — Smoke-test MCP
 
 ```bash
-# Expect non-HTML JSON/MCP response (auth may return 401 without init session;
-# HTML SPA from the *gateway* host means you used the wrong host — use the MCP route)
+# Expect non-HTML JSON/MCP response
+# HTML SPA from the *gateway* host means wrong host — use MCP route or :8448
 curl -sk -o /tmp/mcp_probe.txt -w "%{http_code}\n" \
   -X POST "${MCP_BASE_URL}/job_management/mcp" \
   -H "Authorization: Bearer ${AAP_MCP_TOKEN}" \
@@ -287,112 +304,70 @@ curl -sk -o /tmp/mcp_probe.txt -w "%{http_code}\n" \
 head -c 400 /tmp/mcp_probe.txt; echo
 ```
 
-Wrong host symptom: HTML with Monaco/SPA assets (that is the AAP UI gateway, not MCP).
+Wrong host symptom: HTML with Monaco/SPA assets (AAP UI gateway, not MCP).
+
+To list tools over HTTP you typically need the `Mcp-Session-Id` from the initialize response headers, then `tools/list` on the same session.
 
 ---
 
-## Step 6a — Connect Gemini CLI
+## Step 6a / 6b / 6d — Connect Gemini (CLI, Agent Platform, chat sandbox)
 
-Docs: [MCP servers with the Gemini CLI](https://google-gemini.github.io/gemini-cli/docs/tools/mcp-server.html)
+Full Gemini runbook (trusted TLS, Vertex auth, Agent Registry, Cloud Run sandbox, troubleshooting):
 
-1. Install Gemini CLI and authenticate per Google’s docs.
-2. Ensure `${MCP_BASE_URL}` is reachable from the machine running the CLI (trust private CA if needed).
-3. Copy `configs/gemini-cli-settings.json` → `~/.gemini/settings.json` (or project `.gemini/settings.json`).
-4. Replace `MCP_BASE_HOST` with the MCP host (and port if any). Keep `Authorization: Bearer ${AAP_MCP_TOKEN}`.
-5. Export the token in your shell, then:
+→ **[CONNECT-GEMINI.md](CONNECT-GEMINI.md)**
 
-```bash
-gemini mcp list
-# or add one toolset:
-gemini mcp add --transport http aap-job-mgmt \
-  "${MCP_BASE_URL}/job_management/mcp" \
-  --header "Authorization: Bearer ${AAP_MCP_TOKEN}" \
-  -s user
-```
+Short version:
 
-**Naming:** keep server names short (≤ ~20 chars). Clients often cap `serverName + toolName` at 64 characters.
+1. Ensure MCP HTTPS is **publicly trusted** (Let’s Encrypt / org CA Google trusts). Prefer **:443** for Agent Platform.
+2. **CLI:** copy `configs/gemini-cli-settings.json`, set `httpUrl` + `Bearer ${AAP_MCP_TOKEN}`, run `gemini mcp list` / verification prompts.
+3. **Agent Platform:** create agent from `configs/gemini-agent-tools.json` (includes `base_environment.network.allowlist: ["*"]` and `system_instruction`), grant `roles/mcp.toolUser`, register MCP URLs in Agent Registry, interact via Interactions API.
+4. **Browser sandbox:** deploy `sandbox/` to Cloud Run with `MCP_BASE_URL`, `AAP_MCP_TOKEN`, and `SANDBOX_PASSWORD`.
 
 ---
 
-## Step 6b — Access and set up a Gemini Agent (Agent Platform)
+## Step 6c — Connect Cursor (this IDE)
 
-This is the hosted-agent path (not only the CLI).
+Template: `configs/cursor-mcp.json`.
 
-### Access / prerequisites
+1. Merge AAP entries into `~/.cursor/mcp.json` (preserve any existing servers).
+2. Replace `MCP_BASE_HOST` with your MCP host **including port** when using Podman (`aap.example.com:8448`). On OpenShift use the MCP route host (no `:8448`).
+3. Set `Authorization: Bearer <AAP_MCP_TOKEN>` (literal token or env expansion if your Cursor build supports it).
+4. Reload MCP servers in Cursor (Settings → MCP, or restart the agent).
+5. Confirm tools appear under each `aap-*` server (job templates, inventories, etc.).
 
-1. **Google Cloud project** with billing and permission to use Gemini Enterprise Agent Platform / Vertex AI APIs.
-2. Enable the Agent Platform API for the project.
-3. IAM for your user **and** the agent’s runtime service account as needed:
-   - Ability to create/update agents
-   - **`roles/mcp.toolUser`** if required for MCP tool invocation in your project
-4. `gcloud auth login` and `gcloud auth application-default login` (or a CI service account).
-5. **Network**: Agent Platform must reach `${MCP_BASE_URL}` over HTTPS. Workshop public OpenShift routes usually work; private AAP needs an approved ingress pattern (public route, reverse proxy, etc.). SSE-only MCP is **not** supported — AAP MCP must be **Streamable HTTP**.
-6. AAP token available to inject as `Authorization: Bearer …` (prefer Secret Manager / deploy-time injection over hardcoding in git).
+Example fragment:
 
-### Create an agent with AAP MCP tools
-
-Template: `configs/gemini-agent-tools.json`.
-
-Minimal REST create (replace placeholders):
-
-```bash
-export PROJECT_ID='your-gcp-project'
-export LOCATION='global'
-export MCP_BASE_URL='https://YOUR-MCP-ROUTE'
-export AAP_MCP_TOKEN='...'
-
-curl -X POST \
-  "https://aiplatform.googleapis.com/v1beta1/projects/${PROJECT_ID}/locations/${LOCATION}/agents" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  -d "{
-    \"id\": \"aap-ops-agent\",
-    \"base_agent\": \"antigravity-preview-05-2026\",
-    \"description\": \"Operates Ansible Automation Platform via MCP\",
-    \"tools\": [
-      {
-        \"type\": \"mcp_server\",
-        \"name\": \"aap-job-mgmt\",
-        \"url\": \"${MCP_BASE_URL}/job_management/mcp\",
-        \"headers\": {
-          \"Authorization\": \"Bearer ${AAP_MCP_TOKEN}\"
-        }
-      },
-      {
-        \"type\": \"mcp_server\",
-        \"name\": \"aap-inv-mgmt\",
-        \"url\": \"${MCP_BASE_URL}/inventory_management/mcp\",
-        \"headers\": {
-          \"Authorization\": \"Bearer ${AAP_MCP_TOKEN}\"
-        }
+```json
+{
+  "mcpServers": {
+    "aap-job-mgmt": {
+      "url": "https://aap.example.com:8448/job_management/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_AAP_MCP_TOKEN"
       }
-    ]
-  }"
+    },
+    "aap-inv-mgmt": {
+      "url": "https://aap.example.com:8448/inventory_management/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_AAP_MCP_TOKEN"
+      }
+    }
+  }
+}
 ```
 
-Python / Node SDK examples: Google’s [Create and manage agents](https://docs.cloud.google.com/gemini-enterprise-agent-platform/build/managed-agents/create-manage) (section “Create an agent with MCP configs”).
-
-### Agent setup tips
-
-- Start with **two** toolsets (`job_management`, `inventory_management`); add more after verification.
-- Rotate `AAP_MCP_TOKEN` by updating the agent `tools[].headers` (PATCH agent) — do not leave long-lived admin tokens in agents.
-- If tools never appear: confirm Streamable HTTP, URL path ends with `/mcp`, Bearer token valid, and Agent Platform can resolve DNS to the OpenShift route.
-- Optional: attach project skills under `base_environment.sources` if you also ship Cursor/agent skills for AAP runbooks.
-
-### After create
-
-- Deploy/runtime-enable the agent per your Agent Platform workflow ([Deploy an agent](https://docs.cloud.google.com/gemini-enterprise-agent-platform/scale/runtime/deploy-an-agent)).
-- Open a conversation and run the verification prompts below.
+Self-signed MCP TLS: trust the CA on the workstation, or use a public cert. If Cursor cannot connect, verify `curl -sk` works first, then fix trust.
 
 ---
 
 ## Step 7 — Verify
 
-Ask Gemini (CLI or Agent):
+Ask Gemini (CLI or Agent) or use Cursor MCP tools:
 
 1. `What MCP tools are available for my Ansible Automation Platform?`
 2. `List my Ansible Automation Platform job templates.`
 3. `Show inventories and host counts.`
+4. `List projects and their playbooks.`
 
 With write mode + Write token (careful):
 
@@ -413,11 +388,13 @@ With write mode + Write token (careful):
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| MCP URLs return AAP UI HTML | Using gateway host, not MCP route | Copy `*-mcp` route Location |
-| No `AnsibleMCPServer` / no mcp route | Platform CR not reconciled yet | Patch `spec.mcp`; if still missing, `oc apply` `AnsibleMCPServer` (see [DEPLOY-MCP-OPENSHIFT.md](DEPLOY-MCP-OPENSHIFT.md)) |
-| `SELF_SIGNED_CERT_IN_CHAIN` | Custom OpenShift ingress CA | `bundle_cacert_secret` on MCP CR |
-| Write tools fail | Server still read-only | Set `allow_write_operations: true` and recreate MCP CR |
-| Gemini Agent cannot reach MCP | Private network / firewall | Expose HTTPS route or connect via approved path |
+| MCP URLs return AAP UI HTML | Using gateway host, not MCP | OpenShift: `*-mcp` route; Podman: `https://host:8448` |
+| No `AnsibleMCPServer` / no mcp route | Platform CR not reconciled yet | Patch `spec.mcp`; if still missing, `oc apply` `AnsibleMCPServer` (see [DEPLOY-MCP.md](DEPLOY-MCP.md)) |
+| No MCP on Podman/RHEL | Inventory missing `[ansiblemcp]` / vars | Add inventory + re-run installer; check `podman ps` and **8448** |
+| `SELF_SIGNED_CERT_IN_CHAIN` | Custom / self-signed TLS | OpenShift: `bundle_cacert_secret`; Podman: real `mcp_tls_*` certs |
+| Write tools fail | Server still read-only | OpenShift: enable write + recreate MCP CR; Podman: inventory + reinstall |
+| Gemini Agent cannot reach MCP | Private network / self-signed TLS / no egress | Public trusted HTTPS (prefer :443); set network allowlist `*`; see [CONNECT-GEMINI.md](CONNECT-GEMINI.md) |
+| Agent only uses `list_dir` / `run_command` | MCP tools not attached | Trusted cert, allowlist, Agent Registry, `roles/mcp.toolUser` |
 | 401/403 from MCP | Bad/expired token or RBAC | Recreate token; check user permissions |
 | HTTP 406 on stdout | Non-JSON accept | Ask agent to request JSON output |
 
@@ -427,8 +404,10 @@ With write mode + Write token (careful):
 
 | Path | Purpose |
 |------|---------|
+| [CONNECT-GEMINI.md](CONNECT-GEMINI.md) | Full Gemini AI connect guide |
 | `.cursor/skills/aap-gemini-mcp/` | Cursor skill that follows this runbook |
 | `configs/gemini-cli-settings.json` | Gemini CLI `mcpServers` template |
 | `configs/gemini-agent-tools.json` | Agent Platform `tools[]` template |
 | `configs/cursor-mcp.json` | Cursor/Claude-style `mcp.json` |
 | `configs/.env.example` | Env var names (no secrets) |
+| `sandbox/` | Browser chat UI (Gemini + AAP MCP) |

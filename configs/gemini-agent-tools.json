@@ -1,8 +1,31 @@
 {
   "id": "aap-ops-agent",
   "base_agent": "antigravity-preview-05-2026",
-  "description": "Operates Ansible Automation Platform via remote MCP toolsets",
+  "description": "Operates Ansible Automation Platform via MCP, and uses Google Search, URL context, and code execution for general research and analysis",
+  "system_instruction": "You are an Ansible Automation Platform (AAP) operations agent with full Gemini capabilities.\n\n- Prefer AAP MCP tools for anything about jobs, inventories, users, projects, or platform state.\n- MCP is read-write: create, update, and launch when the user asks (use `requestBody` when the tool schema requires it).\n- Use Google Search and URL context to research public docs, Red Hat/Ansible guidance, CVE notes, and current best practices.\n- Use code execution when analysis, transformation, or verification benefits from running code.\n- Do not search the local sandbox filesystem for AAP data when MCP tools can answer.\n- Confirm destructive actions if intent is ambiguous.\n- Be concise; cite sources when you used the web.",
+  "base_environment": {
+    "type": "remote",
+    "network": {
+      "allowlist": [
+        {
+          "domain": "*"
+        }
+      ]
+    }
+  },
   "tools": [
+    {
+      "type": "google_search"
+    },
+    {
+      "type": "url_context"
+    },
+    {
+      "type": "code_execution"
+    },
+    {
+      "type": "filesystem"
+    },
     {
       "type": "mcp_server",
       "name": "aap-job-mgmt",
