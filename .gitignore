@@ -1,0 +1,6 @@
+.env
+*.pem
+*.key
+*token*
+!configs/.env.example
+.gemini/settings.json

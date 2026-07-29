@@ -1,0 +1,55 @@
+{
+  "id": "aap-ops-agent",
+  "base_agent": "antigravity-preview-05-2026",
+  "description": "Operates Ansible Automation Platform via remote MCP toolsets",
+  "tools": [
+    {
+      "type": "mcp_server",
+      "name": "aap-job-mgmt",
+      "url": "https://MCP_BASE_HOST/job_management/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_AAP_TOKEN"
+      }
+    },
+    {
+      "type": "mcp_server",
+      "name": "aap-inv-mgmt",
+      "url": "https://MCP_BASE_HOST/inventory_management/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_AAP_TOKEN"
+      }
+    },
+    {
+      "type": "mcp_server",
+      "name": "aap-sys-mon",
+      "url": "https://MCP_BASE_HOST/system_monitoring/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_AAP_TOKEN"
+      }
+    },
+    {
+      "type": "mcp_server",
+      "name": "aap-user-mgmt",
+      "url": "https://MCP_BASE_HOST/user_management/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_AAP_TOKEN"
+      }
+    },
+    {
+      "type": "mcp_server",
+      "name": "aap-security",
+      "url": "https://MCP_BASE_HOST/security_compliance/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_AAP_TOKEN"
+      }
+    },
+    {
+      "type": "mcp_server",
+      "name": "aap-plat-cfg",
+      "url": "https://MCP_BASE_HOST/platform_configuration/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_AAP_TOKEN"
+      }
+    }
+  ]
+}
