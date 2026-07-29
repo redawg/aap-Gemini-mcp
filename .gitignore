@@ -4,3 +4,5 @@
 *token*
 !configs/.env.example
 .gemini/settings.json
+.local/
+.gemini/

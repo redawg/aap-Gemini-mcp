@@ -1,14 +1,23 @@
 # Deploy AAP MCP server
 
+Full runbook: [docs/DEPLOY-AND-CONNECT.md](../../../docs/DEPLOY-AND-CONNECT.md)
+
 Official reference: [Deploy the MCP server on Ansible Automation Platform](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/extending_ansible_automation_platform_with_ai/extend-assembly_deploying_ansible_mcp_server)
 
-## Architecture (short)
+## Access required
 
-1. User prompts Gemini (MCP client / host)
-2. Gemini maps intent → MCP tool call
-3. AAP MCP authenticates with the user's AAP API token
-4. Automation controller executes / returns API data
-5. MCP normalizes response → Gemini → user
+| Role | Access |
+|------|--------|
+| Platform admin | OpenShift `oc`/console on AAP cluster **or** containerized installer host |
+| AAP admin / service user | Gateway UI/API to create tokens and verify automation |
+| Network | Client → MCP HTTPS; MCP → AAP APIs (in-cluster for operator) |
+
+## Architecture
+
+1. Gemini (MCP client) sends tool calls with Bearer token  
+2. AAP MCP validates token and proxies to Controller/Gateway  
+3. RBAC of the token + server read/write mode gate actions  
+4. Results return to Gemini (and may be sent to the LLM provider)
 
 ## Toolsets
 
@@ -23,6 +32,14 @@ Official reference: [Deploy the MCP server on Ansible Automation Platform](https
 
 URL pattern: `{MCP_BASE_URL}/{toolset}/mcp`
 
+**Do not** use the AAP gateway UI hostname unless that host is also the MCP route. Wrong host returns SPA HTML.
+
+## Detect “MCP not deployed yet”
+
+- Gateway `service_types`: only `gateway`, `controller`, `hub`, `eda`
+- `oc get route -A | grep mcp` empty
+- Guessed `*-mcp.apps…` hosts return router 503 with no backing service
+
 ## Containerized install
 
 ### Inventory
@@ -34,120 +51,104 @@ aap.example.com
 [all:vars]
 mcp_allow_write_operations=false
 mcp_ignore_certificate_errors=false
-# Optional custom TLS
 # mcp_tls_cert=/path/to/tls.crt
 # mcp_tls_key=/path/to/tls.key
-# Optional list API page size
 # mcp_extra_settings='[{"setting": "DEFAULT_PAGE_SIZE", "value": "25"}]'
 ```
 
 ### Deploy
 
-1. Merge variables into the AAP containerized installer inventory
-2. Run the installer / upgrade playbook for the environment
-3. Confirm pod: `podman ps` → look for `ansiblemcp`
+1. Merge into containerized installer inventory  
+2. Run install/upgrade  
+3. `podman ps` → `ansiblemcp`  
 4. Base URL: `https://aap.example.com:8448`
-
-### Write access
-
-- `false` (default): query only — overrides user write even if token has Write scope
-- `true`: mutations allowed, still gated by token RBAC
 
 ## OpenShift / operator install
 
-### Enable MCP on the AAP custom resource
+### Enable MCP
 
 ```yaml
-apiVersion: aap.ansible.com/v1alpha1
-kind: AnsibleAutomationPlatform
-metadata:
-  name: aap
 spec:
   mcp:
     disabled: false
     allow_write_operations: false
 ```
 
-Optional self-signed ignore (prefer CA secret instead):
-
-```yaml
+```bash
+oc -n "$NS" patch ansibleautomationplatform "$NAME" --type merge -p '
 spec:
   mcp:
     disabled: false
     allow_write_operations: false
-    extra_settings:
-      - setting: IGNORE_CERTIFICATE_ERRORS
-        value: true
+'
+oc -n "$NS" get ansiblemcpserver
+oc -n "$NS" get deploy,pods,route | grep -i mcp
 ```
 
 ### Find URLs
 
 | Item | Where |
 |------|--------|
-| AAP UI | Networking → Routes → AAP route Location |
-| Admin password | Secrets → `aap-admin-password` |
-| MCP base URL | Networking → Routes → `*-mcp` Location |
+| AAP UI | Route for gateway / AAP |
+| Admin password | Secret e.g. `aap-admin-password` |
+| MCP base URL | Route for `*-mcp` → Location |
 
 ### Permission change after deploy
 
-If `allow_write_operations` changes after the MCP CR exists:
+Delete `AnsibleMCPServer` (name often ends with `-mcp`) and let the operator recreate after changing `allow_write_operations`.
 
-1. Find `AnsibleMCPServer` with `-mcp` suffix
-2. Delete the CR
-3. Let the operator recreate it
-
-### Custom CA (SELF_SIGNED_CERT_IN_CHAIN)
+### Custom CA
 
 ```bash
 oc create secret generic aap-mcp-ca \
   --from-file=bundle-ca.crt=/path/to/ca.crt \
-  -n <namespace>
+  -n "$NS"
 ```
 
-On `AnsibleMCPServer`:
-
 ```yaml
+# on AnsibleMCPServer
 spec:
   bundle_cacert_secret: aap-mcp-ca
 ```
 
-Verify init logs mention adding the customer CA bundle; MCP pod logs should have no SSL errors.
-
 ## Create API token
 
-1. Log into AAP as the integration user
-2. Access Management → Users → select user → Tokens → Create token
-3. Application: optional (blank = PAT)
-4. Scope: Read or Write
-5. Copy token once; export as `AAP_MCP_TOKEN`
+1. AAP UI → Access Management → Users → Tokens → Create  
+2. Scope Read or Write  
+3. `export AAP_MCP_TOKEN=...`
 
-Token capabilities = that user's RBAC ∩ server-level read/write mode.
+Gateway API:
+
+```bash
+curl -sk -u "admin:${AAP_PASSWORD}" \
+  -H 'Content-Type: application/json' \
+  -d '{"description":"gemini-mcp","scope":"write"}' \
+  "${AAP_URL%/}/api/gateway/v1/tokens/"
+```
 
 ## Dual-layer security
 
 | Layer | Effect |
 |-------|--------|
-| Server `allow_write_operations` / `mcp_allow_write_operations` | Global read-only vs read-write |
-| API token RBAC + scope | What that identity may do |
+| Server `allow_write_operations` | Global read-only vs read-write |
+| Token RBAC + scope | What that identity may do |
 
 ## Data exposure to LLMs
 
-Always masked by AAP API: credential passwords, secret keys, vault secrets, SSH keys, stored API tokens.
-
-Not masked (may reach Gemini/provider): hostnames, IPs, inventory vars, job logs, extra vars, survey answers.
-
-Recommend: store secrets only in AAP credentials; restrict token org/inventory access.
+Masked: credential passwords, secret keys, vault, SSH keys, stored API tokens.  
+Not masked: hostnames, IPs, inventory vars, job logs, extra vars, survey answers.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
-| `SELF_SIGNED_CERT_IN_CHAIN` | Mount CA via `bundle_cacert_secret` |
-| HTTP 406 on job stdout | Ask Gemini to request JSON first |
-| HTTP 400 with self-signed | Prefer CA trust; last resort `IGNORE_CERTIFICATE_ERRORS` / `mcp_ignore_certificate_errors=true` |
-| Write tools fail though token is Write | Confirm server-level write is enabled and MCP CR was recreated after change |
-| Gemini cannot reach MCP | Check firewall, route, DNS, TLS trust from the Gemini host |
+| `SELF_SIGNED_CERT_IN_CHAIN` | `bundle_cacert_secret` |
+| HTTP 406 on job stdout | Request JSON first |
+| HTTP 400 + self-signed | Prefer CA; last resort `IGNORE_CERTIFICATE_ERRORS` |
+| Write tools fail | Enable write + recreate MCP CR |
+| HTML from “MCP” URL | Wrong host — use MCP route |
+| `oc` points at different cluster | `oc login` to AAP’s API server |
 
 ## Standalone community server (optional)
 
-For local/dev without platform-integrated MCP, see [ansible/aap-mcp-server](https://github.com/ansible/aap-mcp-server). Prefer the platform-deployed MCP for production AAP 2.6+/2.7+.
+[ansible/aap-mcp-server](https://github.com/ansible/aap-mcp-server) for local/dev only. Prefer platform MCP for workshops/production once operator MCP is available.

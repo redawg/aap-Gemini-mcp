@@ -1,27 +1,32 @@
 # Examples
 
-## Example A — Containerized AAP + Gemini CLI (read-only)
+## Example A — OpenShift AAP + Gemini CLI (read-only)
 
-**Given**
+**Access used**
 
-- Host: `aap.corp.example.com`
-- MCP: `https://aap.corp.example.com:8448`
-- Goal: list jobs and inventory; no launches
+- OpenShift: `oc login` to AAP cluster  
+- AAP admin for token  
+- Gemini CLI on laptop with route reachability  
 
-**Inventory**
+**Enable MCP**
 
-```ini
-[ansiblemcp]
-aap.corp.example.com
+```yaml
+spec:
+  mcp:
+    disabled: false
+    allow_write_operations: false
+```
 
-[all:vars]
-mcp_allow_write_operations=false
-mcp_ignore_certificate_errors=false
+**Record route**
+
+```bash
+oc -n aap get route | grep mcp
+export MCP_BASE_URL='https://aap-mcp.apps.example.com'
 ```
 
 **Token**
 
-Create AAP token with **Read** scope for a limited operator user.
+Create AAP token with **Read** scope → `AAP_MCP_TOKEN`.
 
 **Gemini CLI** (`~/.gemini/settings.json`)
 
@@ -29,13 +34,13 @@ Create AAP token with **Read** scope for a limited operator user.
 {
   "mcpServers": {
     "aap-job-mgmt": {
-      "httpUrl": "https://aap.corp.example.com:8448/job_management/mcp",
+      "httpUrl": "https://aap-mcp.apps.example.com/job_management/mcp",
       "headers": {
         "Authorization": "Bearer ${AAP_MCP_TOKEN}"
       }
     },
     "aap-inv-mgmt": {
-      "httpUrl": "https://aap.corp.example.com:8448/inventory_management/mcp",
+      "httpUrl": "https://aap-mcp.apps.example.com/inventory_management/mcp",
       "headers": {
         "Authorization": "Bearer ${AAP_MCP_TOKEN}"
       }
@@ -44,20 +49,21 @@ Create AAP token with **Read** scope for a limited operator user.
 }
 ```
 
-**Verify prompts**
+**Verify**
 
-1. `What MCP tools are available for my Ansible Automation Platform?`
-2. `List my recent Ansible Automation Platform jobs.`
-3. `Summarize hosts in the production inventory.`
+1. `What MCP tools are available for my Ansible Automation Platform?`  
+2. `List my recent Ansible Automation Platform jobs.`  
+3. `Summarize hosts in the production inventory.`  
 
 ---
 
-## Example B — OpenShift AAP + Gemini Agent (read-write jobs)
+## Example B — Gemini Agent Platform (read-write jobs)
 
-**Given**
+**Access used**
 
-- MCP route: `https://aap-mcp-apps.apps.cluster.example.com`
-- Goal: Gemini Agent can launch job templates the token allows
+- GCP project + Agent Platform API + `roles/mcp.toolUser`  
+- MCP write enabled + Write-scoped AAP token  
+- Public MCP HTTPS route  
 
 **AAP CR**
 
@@ -68,27 +74,25 @@ spec:
     allow_write_operations: true
 ```
 
-**Token**
-
-Write-scoped token for a service account limited to specific job templates/orgs.
-
-**Agent tools**
+**Agent tool**
 
 ```json
 {
   "type": "mcp_server",
   "name": "aap-job-mgmt",
-  "url": "https://aap-mcp-apps.apps.cluster.example.com/job_management/mcp",
+  "url": "https://aap-mcp.apps.example.com/job_management/mcp",
   "headers": {
     "Authorization": "Bearer YOUR_AAP_TOKEN"
   }
 }
 ```
 
-**Verify prompts**
+Create agent via Managed Agents API (see `docs/DEPLOY-AND-CONNECT.md` Step 6b).
 
-1. `List job templates I can launch.`
-2. `Launch job template X with extra vars {...} and report status.`
+**Verify**
+
+1. `List job templates I can launch.`  
+2. `Launch job template X and report status.`  
 
 ---
 
@@ -96,12 +100,29 @@ Write-scoped token for a service account limited to specific job templates/orgs.
 
 ```bash
 export AAP_MCP_TOKEN='...'
-export MCP_BASE='https://aap.corp.example.com:8448'
+export MCP_BASE_URL='https://aap-mcp.apps.example.com'
 
 gemini mcp add --transport http aap-job-mgmt \
-  "${MCP_BASE}/job_management/mcp" \
+  "${MCP_BASE_URL}/job_management/mcp" \
   --header "Authorization: Bearer ${AAP_MCP_TOKEN}" \
   -s user
 
 gemini mcp list
 ```
+
+---
+
+## Example D — Workshop status before MCP is enabled
+
+**Symptoms**
+
+- AAP gateway up (`/api/controller/v2/ping/` → 200)  
+- No MCP in gateway service types  
+- `oc` context on a **different** cluster than AAP  
+- Guessed `*-mcp.apps…` → 503  
+
+**Unblock**
+
+1. `oc login` to the AAP cluster API  
+2. Patch `spec.mcp.disabled: false`  
+3. Copy real MCP route → configure Gemini  
