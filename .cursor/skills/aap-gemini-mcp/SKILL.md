@@ -37,21 +37,25 @@ Progress:
 ## Deploy MCP (OpenShift)
 
 ```yaml
+# on AnsibleAutomationPlatform
 spec:
   mcp:
     disabled: false
     allow_write_operations: false
 ```
 
+If `AnsibleMCPServer` is not created automatically, apply it (Lightspeed reconciles):
+
 ```bash
-oc -n "$NS" get ansiblemcpserver
-oc -n "$NS" get route | grep -i mcp
-export MCP_BASE_URL="https://$(oc -n "$NS" get route -o jsonpath='{.items[?(@.metadata.name contains \"mcp\")].spec.host}')"
+AAP_HOST=$(oc -n aap get route aap -o jsonpath='{.spec.host}')
+# create AnsibleMCPServer aap-mcp with public_base_url=https://$AAP_HOST
+oc -n aap rollout status deploy/aap-mcp --timeout=180s
+export MCP_BASE_URL="https://$(oc -n aap get route aap-mcp -o jsonpath='{.spec.host}')"
 ```
 
-Prefer exact route name from `oc get route`. Containerized: port **8448**.
+Workshop example: `https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io`
 
-Toolsets: `{BASE}/{job_management|inventory_management|system_monitoring|user_management|security_compliance|platform_configuration}/mcp`
+Toolsets: `{BASE}/job_management/mcp` (also `{BASE}/mcp/job_management`). Containerized: port **8448**.
 
 After flipping write mode, **delete/recreate** `AnsibleMCPServer`.
 
