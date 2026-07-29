@@ -3,11 +3,11 @@ name: aap-gemini-mcp
 description: >-
   Deploys Ansible Automation Platform (AAP) with the MCP server from a blank GCP
   project or existing AAP (OpenShift / RHEL Podman), then connects Cursor,
-  Gemini CLI, Gemini Agent Platform, or the browser chat sandbox. Always ask for
-  any missing GCP/AAP/DNS/registry inputs. On blank GCP, ask whether the user
-  wants managed target hosts; if yes create RHEL 9 + RHEL 10 VMs and a GCP
-  dynamic inventory in AAP. Use for from-scratch GCP deploys, Podman AAP+MCP,
-  MCP tokens, Cloud Run chatbot, or AAP MCP tool use.
+  Gemini CLI, Gemini Agent Platform, or the browser chat sandbox. Interview the
+  user step by step (one decision at a time) based on their answers; ask for any
+  missing inputs; on GCP optionally create RHEL 9+10 targets and a GCP dynamic
+  inventory. Use for from-scratch GCP deploys, Podman AAP+MCP, MCP tokens,
+  Cloud Run chatbot, or AAP MCP tool use.
 ---
 
 # AAP MCP + Gemini / Cursor
@@ -26,51 +26,92 @@ Prefer placeholders (`aap.example.com`). **Never invent** project IDs, tokens, p
 
 ---
 
-## Interview first — ask for anything not provided
+## Step-by-step interview (mandatory)
 
-At the start of a blank-GCP (or incomplete) deploy, **ask the user for every missing item**. Do not proceed past the access gate until you have answers or an explicit “skip / N/A”.
+Interview **one step at a time**. Ask the question for that step, **wait for the user’s answer**, then branch. Do **not** dump the full questionnaire in one message. Skip a step only if the answer is already clearly in the conversation or in `.local/` files the user pointed you to.
 
-### Required questions (ask if not already in the chat / `.local/`)
+### Rules
 
-1. **Are you Red Hat (or demo-catalog eligible)?**  
-   - Yes → use **Demo Google Open Environment** (do not require personal billing).  
-   - No → need a GCP project with billing.
-2. **GCP project ID** (and how to auth: user `gcloud` login vs path to SA JSON in `.local/`)?
-3. **Preferred region/zone** (default `us-central1` / `us-central1-a` OK)?
-4. **DNS**: zone/FQDN you control for AAP/MCP (lab zone name if openenv)?
-5. **Red Hat registry** username + token/password (or confirm already on the VM)?
-6. **AAP containerized setup tarball** available / path to copy onto the VM?
-7. **Chat paths wanted**: Cloud Run sandbox (recommended) / Agent Platform / Gemini CLI?
-8. **MCP write mode** for create/launch demos? (default lab: yes if they want create prompts)
-9. **Managed target inventory?**  
-   > Do you want extra target hosts for inventories/jobs? If yes, I will create **one RHEL 9** and **one RHEL 10** VM and a **GCP dynamic inventory** in AAP that discovers them.
+1. Start at **Q0**. After each answer, follow the branch → next Q.  
+2. If unsure, give a one-line recommendation and re-ask.  
+3. After the last interview step, **summarize the plan** and get confirmation before provisioning.  
+4. Missing required data → ask; never invent.
 
-### If targets = yes
+```text
+Q0 starting point?
+├─ blank GCP / from scratch ──► Q1
+├─ existing AAP ──────────────► QE1
+└─ unsure ────────────────────► brief options, re-ask Q0
+```
 
-1. Create `rhel9-target` + `rhel10-target` (tag `aap-target`) — [DEPLOY-GCP-FROM-SCRATCH Step 1b](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md).  
-2. After AAP is up: create **Google Compute Engine** credential + inventory **GCP Dynamic** with source **Google Compute Engine**, filter/tag `aap-target` — [Step 6b](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md).  
-3. Sync inventory; add machine SSH credential so jobs can reach hosts.
+### Blank GCP / from-scratch path
 
-### If targets = no
+**Q1 — Are you Red Hat (or demo-catalog eligible)?**  
+- **Yes** → If no project yet, tell them to order **Demo Google Open Environment**. → **Q2**  
+- **No** → They need a GCP project with billing. → **Q2**
 
-Continue with AAP server only; still offer a GCP dynamic inventory later if they change their mind.
+**Q2 — Do you already have a GCP project ready?**  
+- **Yes** → Ask **project ID** + auth (`gcloud` user login vs SA JSON path under `.local/`). → **Q3**  
+- **No** + Red Hat → Pause until openenv is ready; re-ask **Q2**  
+- **No** + not Red Hat → Pause until they create a billed project; re-ask **Q2**
 
-### Also confirm (existing AAP path)
+**Q3 — Use region/zone `us-central1` / `us-central1-a`?**  
+- **Yes** → record defaults → **Q4**  
+- **No** → ask for region + zone → **Q4**
 
-1. AAP URL + admin password (lab default documented as `R3dh2t!2026` only when this repo installed it)  
-2. OpenShift `oc` **or** RHEL/Podman installer access  
-3. MCP reachability + public CA for Gemini  
+**Q4 — What DNS will AAP/MCP use?** (zone + FQDNs, or lab zone from openenv)  
+- Have it → record → **Q5**  
+- Don’t → explain public DNS needed for Gemini TLS; wait until they have a zone → **Q5**
 
-**Missing → ask. Never invent.**
+**Q5 — Red Hat registry credentials available?** (`registry.redhat.io`)  
+- **Yes** → how provided (chat once / on VM / `.local/` path) → **Q6**  
+- **No** → pause until pull secret exists → re-ask **Q5**
+
+**Q6 — AAP containerized setup tarball available?**  
+- **Yes** → path or “will copy to VM” → **Q7**  
+- **No** → point to access.redhat.com; pause → **Q7** when ready
+
+**Q7 — Which Gemini chat paths?** (multi-select OK)  
+- **C** Cloud Run sandbox (recommended)  
+- **B** Agent Platform  
+- **A** Gemini CLI  
+If none → recommend **C**, confirm → **Q8**
+
+**Q8 — Enable MCP write mode** (create/launch)?  
+- **Yes** / **No** → record → **Q9**
+
+**Q9 — Extra target inventory?**  
+> Do you want managed target hosts? If yes, I will create **one RHEL 9** and **one RHEL 10** VM and a **GCP dynamic inventory** in AAP.
+
+- **Yes** → `CREATE_TARGET_HOSTS=yes` (VMs in Step 1b + dynamic inventory in Step 6b) → **Q10**  
+- **No** → AAP server only → **Q10**
+
+**Q10 — Ready to proceed?**  
+Show a short summary (project, zone, DNS, registry, tarball, chat paths, write mode, targets).  
+- **Yes** → provision via [DEPLOY-GCP-FROM-SCRATCH.md](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md)  
+- **Change X** → jump back to that Q  
+- **No** → stop
+
+### Existing AAP path (from Q0)
+
+**QE1** — OpenShift vs RHEL/Podman vs unknown?  
+**QE2** — AAP URL + admin access? (password only if needed)  
+**QE3** — MCP already enabled? → get `MCP_BASE_URL` or enable per docs  
+**QE4** — Same as **Q7–Q9** (chat paths, write mode, targets if GCP available)  
+**QE5** — Confirm plan → [DEPLOY-AND-CONNECT.md](../../../docs/DEPLOY-AND-CONNECT.md) / [CONNECT-GEMINI.md](../../../docs/CONNECT-GEMINI.md)
+
+### During deploy
+
+If blocked on a secret (registry password, SA key path, DNS record), ask **that one thing**, then continue — still one step at a time.
 
 ---
 
 ## Access gate (summary)
 
-**Blank GCP** — see full list in [DEPLOY-GCP-FROM-SCRATCH § GCP access](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md):
+**Blank GCP** — [DEPLOY-GCP-FROM-SCRATCH § GCP access](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md):
 
 - Project + billing **or** Demo Google Open Environment  
-- IAM (Owner/Editor or listed roles), Vertex for chat, quotas for AAP VM (+ 2 targets)  
+- IAM, Vertex for chat, quotas for AAP VM (+ 2 targets if Q9=yes)  
 - RH registry + installer tarball + DNS  
 
 **Existing AAP** — admin access, OpenShift or Podman path, client → MCP HTTPS.
@@ -81,35 +122,25 @@ Continue with AAP server only; still offer a GCP dynamic inventory later if they
 
 ```
 Progress:
-- [ ] 0. Interview: ask for every missing input (GCP, DNS, registry, chat paths, targets)
-- [ ] 1. Choose: blank GCP (DEPLOY-GCP-FROM-SCRATCH) OR existing AAP
-- [ ] 2. Platform ready (VM + AAP+MCP)
-- [ ] 2b. If targets requested: RHEL 9 + RHEL 10 VMs created
-- [ ] 3. Record MCP_BASE_URL (prefer :443 + public CA)
-- [ ] 4. MCP user + AAP_MCP_TOKEN
-- [ ] 5. Smoke-test POST ${MCP_BASE_URL}/mcp
-- [ ] 6. Write mode if needed
-- [ ] 6b. If targets: GCP dynamic inventory (GCE cred + sync) + SSH machine cred
-- [ ] 7. Path C sandbox and/or Path A/B
-- [ ] 8. Give starter chatbot questions
+- [ ] 0. Step-by-step interview done (Q0→Q10 or QE) + plan confirmed
+- [ ] 1. Platform ready (VM + AAP+MCP)
+- [ ] 1b. If Q9=yes: RHEL 9 + RHEL 10 VMs
+- [ ] 2. Record MCP_BASE_URL (prefer :443 + public CA)
+- [ ] 3. MCP user + AAP_MCP_TOKEN
+- [ ] 4. Smoke-test POST ${MCP_BASE_URL}/mcp
+- [ ] 5. Write mode if Q8=yes
+- [ ] 5b. If Q9=yes: GCP dynamic inventory + SSH machine cred
+- [ ] 6. Chat paths from Q7 (prefer Path C first)
+- [ ] 7. Starter chatbot questions
 ```
 
 ## Blank GCP (summary)
 
-Follow **[DEPLOY-GCP-FROM-SCRATCH.md](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md)**:
+Follow **[DEPLOY-GCP-FROM-SCRATCH.md](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md)** after the interview:
 
-0. Interview + enable APIs  
-1. AAP RHEL VM  
-1b. **Ask targets** → optional RHEL 9 + RHEL 10  
-2. DNS  
-3. Install AAP+MCP  
-4. Token  
-5. Trusted TLS / :443  
-6. Write mode  
-6b. **GCP dynamic inventory** (when targets or user wants cloud inventory)  
-7–9. Sandbox / Agent / CLI  
+0. Enable APIs → 1 AAP VM → 1b targets if Q9 → 2 DNS → 3 install → 4 token → 5 TLS → 6 write → 6b GCP inventory → 7–9 chat paths  
 
-Secrets only in `.local/` (gitignored). Default lab admin password: **`R3dh2t!2026`**.
+Secrets in `.local/` only. Lab admin password default: **`R3dh2t!2026`**.
 
 ## Deploy — OpenShift (summary)
 
@@ -149,11 +180,11 @@ curl -sk -u "${MCP_USER}:${MCP_USER_PASSWORD}" \
 
 ## Starter chatbot questions
 
-After Path C works, point users at preloaded UI chips **or**:
+After Path C works, use preloaded UI chips **or**:
 
 1. List job templates by name.  
 2. What AAP MCP tools can create or change something?  
-3. List inventories / hosts (should include GCP dynamic hosts if synced).  
+3. List inventories / hosts (GCP dynamic hosts if synced).  
 4. Search the web for AAP MCP and compare to your tools.  
 5. (Write) Create group / launch Demo Job Template.  
 6. Can you create a project via MCP? *(Expect list only.)*
@@ -174,12 +205,11 @@ Full list: [DEPLOY-GCP-FROM-SCRATCH § Step 10](../../../docs/DEPLOY-GCP-FROM-SC
 
 ## Agent behavior (mandatory)
 
-1. **Ask for every missing prerequisite** before creating cloud resources.  
-2. Red Hat users → **Demo Google Open Environment** when they lack a project.  
-3. **Always ask** about extra target inventory (RHEL 9 + RHEL 10).  
-4. If yes → create VMs **and** AAP **GCP / GCE dynamic inventory** + sync.  
-5. Prefer Path C for first chat demo; do not invent URLs/tokens.  
-6. Stay generic in committed docs (no workshop-only hostnames).  
+1. Run the **step-by-step interview** (one question/branch per turn); wait before continuing.  
+2. Red Hat without a project → **Demo Google Open Environment**.  
+3. **Q9 = yes** → RHEL 9+10 VMs **and** GCP dynamic inventory after AAP is up.  
+4. Prefer Path C for first chat demo; never invent URLs/tokens.  
+5. Stay generic in committed docs (no workshop-only hostnames).  
 
 ## Additional resources
 

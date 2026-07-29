@@ -605,16 +605,16 @@ Use these after Path C (or CLI) is up. Copy/paste into the sandbox chat.
 
 ## Agent / Cursor skill behavior (blank GCP)
 
-When the user provides a blank GCP project (or incomplete inputs):
+Run the **step-by-step interview** in [SKILL.md](../.cursor/skills/aap-gemini-mcp/SKILL.md) (Q0→Q10): **one step per turn**, branch on answers, then confirm the plan before provisioning.
 
-1. **Interview first** — ask for every missing item (project, auth, DNS, registry, tarball, chat paths, write mode, **targets**). Do not invent answers.
-2. State **GCP access required**; Red Hat / demo-catalog → **Demo Google Open Environment**.
-3. **Ask about managed target inventory.** If yes → create RHEL 9 + RHEL 10 VMs (**Step 1b**) and a **GCP dynamic inventory** (**Step 6b**).
-4. Follow this doc’s checklist in order; do not skip TLS before Gemini Path B/C.
-5. Prefer **Path C** for the first successful chat demo.
-6. Keep secrets in `.local/`; placeholders only in git.
-7. After chat works, give starter questions; include inventory/host prompts when GCP sync exists.
-8. Document real URLs and target/inventory names once known.
+Highlights:
+
+1. Ask starting point (blank GCP vs existing AAP).  
+2. Red Hat → Demo Google Open Environment when no project.  
+3. Collect project/auth, zone, DNS, registry, tarball, chat paths, write mode.  
+4. Ask about **target inventory**; if yes → RHEL 9+10 VMs + **GCP dynamic inventory** (Step 6b).  
+5. Summarize and get confirmation → execute this checklist.  
+6. Never invent secrets or hostnames; prefer Path C for first chat.
 
 ---
 
