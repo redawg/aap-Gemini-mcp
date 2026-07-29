@@ -77,6 +77,7 @@ Start **read-only** unless you intentionally want Gemini to launch jobs.
 
 ```
 - [ ] 0. Confirm AAP is up (gateway + controller API)
+- [ ] 0b. (Recommended) Install Ansible Product Demos — INSTALL-APD.md
 - [ ] 1. Choose deploy path: OpenShift OR Podman on RHEL (see deploy docs)
 - [ ] 2. Enable MCP
 - [ ] 3. Wait for MCP; record MCP_BASE_URL (route or :8448)
@@ -101,6 +102,8 @@ curl -sk -u "admin:${AAP_PASSWORD}" \
 ```
 
 Expect HTTP 200 and a controller `version`. Gateway root: `${AAP_URL%/}/api/` should list `controller`, `gateway`, etc.
+
+**Recommended:** install Ansible Product Demos so templates exist for MCP demos — [INSTALL-APD.md](INSTALL-APD.md).
 
 **MCP is not enabled** if gateway `service_types` only show `gateway`, `controller`, `hub`, `eda` (no MCP), and there is no `*-mcp` OpenShift route **or** no MCP listener on `:8448` (Podman/RHEL).
 
@@ -405,6 +408,7 @@ With write mode + Write token (careful):
 
 | Path | Purpose |
 |------|---------|
+| [INSTALL-APD.md](INSTALL-APD.md) | Ansible Product Demos (`install-apd.yml`) |
 | [CONNECT-GEMINI.md](CONNECT-GEMINI.md) | Full Gemini AI connect guide |
 | `.cursor/skills/aap-gemini-mcp/` | Cursor skill that follows this runbook |
 | `configs/gemini-cli-settings.json` | Gemini CLI `mcpServers` template |

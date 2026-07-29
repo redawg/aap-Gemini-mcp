@@ -9,7 +9,7 @@ Official references:
 - [Containerized installation](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/containerized_installation/index)
 - [Deploy the MCP server](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/extending_ansible_automation_platform_with_ai/extend-assembly_deploying_ansible_mcp_server)
 
-After this guide, continue with [DEPLOY-AND-CONNECT.md](DEPLOY-AND-CONNECT.md) (token + Cursor / Gemini).
+After this guide, continue with [INSTALL-APD.md](INSTALL-APD.md) (product demos), then [DEPLOY-AND-CONNECT.md](DEPLOY-AND-CONNECT.md) (token + Cursor / Gemini).
 
 **Blank Google Cloud project?** Use the master checklist [DEPLOY-GCP-FROM-SCRATCH.md](DEPLOY-GCP-FROM-SCRATCH.md) (VM + DNS + TLS + chat), which calls this guide for the AAP install steps.
 
@@ -240,5 +240,6 @@ Do not bake registry passwords or admin passwords into git or public images.
 
 ## Next
 
-1. [DEPLOY-AND-CONNECT.md](DEPLOY-AND-CONNECT.md) — dedicated MCP user, API token, Cursor / Gemini clients  
-2. [DEPLOY-MCP.md](DEPLOY-MCP.md) — OpenShift MCP path, or MCP-only changes on an existing containerized install  
+1. [INSTALL-APD.md](INSTALL-APD.md) — seed Ansible Product Demos (`install-apd.yml`)  
+2. [DEPLOY-AND-CONNECT.md](DEPLOY-AND-CONNECT.md) — dedicated MCP user, API token, Cursor / Gemini clients  
+3. [DEPLOY-MCP.md](DEPLOY-MCP.md) — OpenShift MCP path, or MCP-only changes on an existing containerized install  

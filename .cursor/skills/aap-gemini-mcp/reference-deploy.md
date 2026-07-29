@@ -4,6 +4,7 @@
 |-------|------|
 | **Blank GCP → full stack** | [docs/DEPLOY-GCP-FROM-SCRATCH.md](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md) |
 | Greenfield RHEL + Podman + MCP | [docs/DEPLOY-AAP-CONTAINERIZED.md](../../../docs/DEPLOY-AAP-CONTAINERIZED.md) |
+| Ansible Product Demos (APD) | [docs/INSTALL-APD.md](../../../docs/INSTALL-APD.md) |
 | OpenShift / brownfield MCP | [docs/DEPLOY-MCP.md](../../../docs/DEPLOY-MCP.md) |
 | User, token, Cursor, Gemini | [docs/DEPLOY-AND-CONNECT.md](../../../docs/DEPLOY-AND-CONNECT.md) |
 | Gemini paths + chat questions | [docs/CONNECT-GEMINI.md](../../../docs/CONNECT-GEMINI.md) |

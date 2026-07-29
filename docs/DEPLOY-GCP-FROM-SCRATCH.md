@@ -8,6 +8,7 @@ Use this when the user says they have a **blank GCP environment** (or new projec
 |------|----------------|
 | 1–4 | This doc (GCP + VM + DNS) |
 | 5 | [DEPLOY-AAP-CONTAINERIZED.md](DEPLOY-AAP-CONTAINERIZED.md) |
+| 5b | [INSTALL-APD.md](INSTALL-APD.md) — Ansible Product Demos catalog |
 | 6–7 | [DEPLOY-AND-CONNECT.md](DEPLOY-AND-CONNECT.md) + TLS notes here / [CONNECT-GEMINI.md](CONNECT-GEMINI.md) |
 | 8–10 | [CONNECT-GEMINI.md](CONNECT-GEMINI.md) (Paths A/B/C) |
 
@@ -171,6 +172,7 @@ Complete **[GCP access you need](#gcp-access-you-need-state-this-up-front)** fir
 - [ ] 1b. Ask user: target hosts? If yes → create RHEL 9 + RHEL 10 managed nodes
 - [ ] 2. DNS A records (AAP + MCP hostnames)
 - [ ] 3. Install AAP + MCP on the VM (containerized)
+- [ ] 3b. Install Ansible Product Demos (APD) via install-apd.yml
 - [ ] 4. MCP user + gateway token (write scope if creating resources)
 - [ ] 5. Trusted TLS on MCP + prefer :443 for Gemini
 - [ ] 6. Enable MCP write mode (optional but needed for create/launch)
@@ -343,6 +345,28 @@ export MCP_BASE_URL="https://${AAP_FQDN}:8448"   # until LB/TLS on :443
 
 ---
 
+## Step 3b — Install Ansible Product Demos (APD)
+
+Seed AAP with the official product-demo catalog so Gemini/MCP list/launch prompts have real templates.
+
+Follow **[INSTALL-APD.md](INSTALL-APD.md)** (upstream playbook [`install-apd.yml`](https://github.com/ansible/product-demos/blob/main/install-apd.yml)):
+
+```bash
+git clone https://github.com/ansible/product-demos.git
+cd product-demos
+export AAP_HOSTNAME="https://${AAP_FQDN}"
+export AAP_USERNAME=admin
+export AAP_PASSWORD='R3dh2t!2026'   # lab default from this repo; change if you set another
+export AAP_VALIDATE_CERTS=false     # until public CA on the UI
+ansible-navigator run -m stdout install-apd.yml
+```
+
+Confirm **APD | Single demo setup** / **APD | Multi-demo setup** exist in the UI. Optionally launch Single/Multi to materialize linux/cloud/… demo templates.
+
+Skip only if the user explicitly declines APD.
+
+---
+
 ## Step 4 — MCP user + token
 
 Follow **[DEPLOY-AND-CONNECT.md](DEPLOY-AND-CONNECT.md)** Step 4:
@@ -362,7 +386,7 @@ curl -sS -D - -o /tmp/mcp-init.sse \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"smoke","version":"0"}}}'
 ```
 
-Expect HTTP 200 and JSON-RPC `serverInfo`. Optional: seed a **Demo Job Template** / inventory so list prompts return something obvious.
+Expect HTTP 200 and JSON-RPC `serverInfo`. APD (Step 3b) should already provide listable job templates.
 
 ---
 
@@ -588,7 +612,7 @@ Use these after Path C (or CLI) is up. Copy/paste into the sandbox chat.
 
 10. **Create an inventory group named `chatbot-demo` in inventory id 1 with a short description.**
 11. **Create a team named `mcp-demo-team` in the Default organization (or the org id you have).**
-12. **Launch the Demo Job Template and report the job id and status.** *(may 403 if RBAC is tight)*
+12. **Launch APD | Single demo setup (or another APD template) and report the job id and status.** *(survey/extra vars may be required; may 403 if RBAC is tight)*
 
 ### If target hosts / GCP dynamic inventory
 
@@ -611,10 +635,11 @@ Highlights:
 
 1. Ask starting point (blank GCP vs existing AAP).  
 2. Red Hat → Demo Google Open Environment when no project.  
-3. Collect project/auth, zone, DNS, registry, tarball, chat paths, write mode.  
+3. Collect project/auth, zone, DNS, registry, tarball, chat paths, write mode, APD.  
 4. Ask about **target inventory**; if yes → RHEL 9+10 VMs + **GCP dynamic inventory** (Step 6b).  
-5. Summarize and get confirmation → execute this checklist.  
-6. Never invent secrets or hostnames; prefer Path C for first chat.
+5. Default **yes** for APD install (Step 3b) unless the user declines.  
+6. Summarize and get confirmation → execute this checklist.  
+7. Never invent secrets or hostnames; prefer Path C for first chat.
 
 ---
 
@@ -638,6 +663,7 @@ Highlights:
 | Path | Purpose |
 |------|---------|
 | [DEPLOY-AAP-CONTAINERIZED.md](DEPLOY-AAP-CONTAINERIZED.md) | RHEL/Podman AAP + MCP install |
+| [INSTALL-APD.md](INSTALL-APD.md) | Ansible Product Demos (`install-apd.yml`) |
 | [DEPLOY-MCP.md](DEPLOY-MCP.md) | OpenShift / brownfield MCP |
 | [DEPLOY-AND-CONNECT.md](DEPLOY-AND-CONNECT.md) | User, token, Cursor |
 | [CONNECT-GEMINI.md](CONNECT-GEMINI.md) | Gemini paths A/B/C deep dive |

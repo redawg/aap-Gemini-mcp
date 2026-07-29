@@ -12,26 +12,20 @@ All examples use placeholders (`aap.example.com`). Replace with your environment
 - Empty GCP project with billing + `gcloud`, **or** Red Hat **Demo Google Open Environment**  
 - IAM / roles in [DEPLOY-GCP-FROM-SCRATCH § GCP access](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md)  
 - Near the end: target hosts? → if yes, RHEL 9 + RHEL 10 **and** GCP dynamic inventory  
+- Default: install APD after AAP (`install-apd.yml` / [INSTALL-APD.md](../../../docs/INSTALL-APD.md))  
 
 **Outcome**
 
 1. RHEL VM with AAP + `ansiblemcp`  
-2. Optional: `rhel9-target` + `rhel10-target` discovered via **GCP Dynamic** inventory sync  
-3. Trusted TLS MCP on `:443` (preferred) or `:8448`  
-4. Cloud Run sandbox URL + password  
-5. User asks starter questions from Step 10 of that guide  
-
-**Outcome**
-
-1. RHEL VM with AAP + `ansiblemcp`  
-2. Optional: `rhel9-target` + `rhel10-target` in an AAP inventory  
-3. Trusted TLS MCP on `:443` (preferred) or `:8448`  
-4. Cloud Run sandbox URL + password  
-5. User asks starter questions from Step 10 of that guide  
+2. APD org/project/templates seeded (`APD | Single demo setup`, …)  
+3. Optional: `rhel9-target` + `rhel10-target` discovered via **GCP Dynamic** inventory sync  
+4. Trusted TLS MCP on `:443` (preferred) or `:8448`  
+5. Cloud Run sandbox URL + password  
+6. User asks starter questions from Step 10 of that guide  
 
 **First prompts after login**
 
-1. `List job templates by name.`  
+1. `List job templates by name.` *(expect APD templates)*  
 2. `What AAP MCP tools can create or change something?`  
 3. `Search the web for Ansible Automation Platform MCP and compare to your tools.`  
 

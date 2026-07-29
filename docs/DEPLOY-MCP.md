@@ -220,6 +220,7 @@ fields under a `requestBody` argument.
 
 ## Next
 
-1. Create AAP token → `AAP_MCP_TOKEN`  
-2. Wire Gemini CLI / Agent → [DEPLOY-AND-CONNECT.md](DEPLOY-AND-CONNECT.md)  
-3. Templates: `configs/gemini-cli-settings.json`, `configs/gemini-agent-tools.json`  
+1. (Recommended) Install Ansible Product Demos → [INSTALL-APD.md](INSTALL-APD.md)  
+2. Create AAP token → `AAP_MCP_TOKEN`  
+3. Wire Gemini CLI / Agent → [DEPLOY-AND-CONNECT.md](DEPLOY-AND-CONNECT.md)  
+4. Templates: `configs/gemini-cli-settings.json`, `configs/gemini-agent-tools.json`  

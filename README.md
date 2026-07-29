@@ -6,8 +6,9 @@ Deploy AAP’s Model Context Protocol (MCP) server and connect **Cursor**, **Gem
 
 | Doc | Purpose |
 |-----|---------|
-| **[docs/DEPLOY-GCP-FROM-SCRATCH.md](docs/DEPLOY-GCP-FROM-SCRATCH.md)** | **Blank GCP** → VM → AAP+MCP → TLS → Gemini chat (GCP access list, Red Hat Demo Google Open Environment, starter questions) |
+| **[docs/DEPLOY-GCP-FROM-SCRATCH.md](docs/DEPLOY-GCP-FROM-SCRATCH.md)** | **Blank GCP** → VM → AAP+MCP → APD → TLS → Gemini chat (GCP access list, Red Hat Demo Google Open Environment, starter questions) |
 | **[docs/DEPLOY-AAP-CONTAINERIZED.md](docs/DEPLOY-AAP-CONTAINERIZED.md)** | Install AAP on **RHEL + Podman** from scratch **including MCP** |
+| **[docs/INSTALL-APD.md](docs/INSTALL-APD.md)** | Seed **Ansible Product Demos** via [`install-apd.yml`](https://github.com/ansible/product-demos/blob/main/install-apd.yml) |
 | **[docs/DEPLOY-MCP.md](docs/DEPLOY-MCP.md)** | Enable MCP on **OpenShift**, or add MCP to an existing containerized AAP |
 | **[docs/DEPLOY-AND-CONNECT.md](docs/DEPLOY-AND-CONNECT.md)** | Dedicated MCP user, API token, Cursor wiring, smoke-tests |
 | **[docs/CONNECT-GEMINI.md](docs/CONNECT-GEMINI.md)** | **Gemini AI**: CLI, Agent Platform, trusted TLS, chat sandbox |
@@ -19,10 +20,11 @@ Deploy AAP’s Model Context Protocol (MCP) server and connect **Cursor**, **Gem
    - **Blank GCP** → [DEPLOY-GCP-FROM-SCRATCH.md](docs/DEPLOY-GCP-FROM-SCRATCH.md)
    - No AAP yet (any cloud) → [DEPLOY-AAP-CONTAINERIZED.md](docs/DEPLOY-AAP-CONTAINERIZED.md)
    - AAP on OpenShift / existing Podman → [DEPLOY-MCP.md](docs/DEPLOY-MCP.md)
-3. Create MCP user + token → [DEPLOY-AND-CONNECT.md](docs/DEPLOY-AND-CONNECT.md)
-4. Connect Gemini → **[CONNECT-GEMINI.md](docs/CONNECT-GEMINI.md)** (prefer Cloud Run chat sandbox first)
-5. Copy templates from `configs/`, replace placeholders (never commit secrets).
-6. Ask starter questions from [DEPLOY-GCP-FROM-SCRATCH.md § Step 10](docs/DEPLOY-GCP-FROM-SCRATCH.md).
+3. Install Ansible Product Demos → **[INSTALL-APD.md](docs/INSTALL-APD.md)** (recommended)
+4. Create MCP user + token → [DEPLOY-AND-CONNECT.md](docs/DEPLOY-AND-CONNECT.md)
+5. Connect Gemini → **[CONNECT-GEMINI.md](docs/CONNECT-GEMINI.md)** (prefer Cloud Run chat sandbox first)
+6. Copy templates from `configs/`, replace placeholders (never commit secrets).
+7. Ask starter questions from [DEPLOY-GCP-FROM-SCRATCH.md § Step 10](docs/DEPLOY-GCP-FROM-SCRATCH.md).
 
 ## What you need (summary)
 
@@ -41,6 +43,7 @@ Deploy AAP’s Model Context Protocol (MCP) server and connect **Cursor**, **Gem
 ```
 docs/DEPLOY-GCP-FROM-SCRATCH.md   # Blank GCP → full stack + chatbot questions
 docs/DEPLOY-AAP-CONTAINERIZED.md  # Greenfield RHEL/Podman AAP + MCP
+docs/INSTALL-APD.md               # Ansible Product Demos (install-apd.yml)
 docs/DEPLOY-MCP.md                # OpenShift MCP / brownfield Podman MCP
 docs/DEPLOY-AND-CONNECT.md        # User, token, Cursor, smoke-test
 docs/CONNECT-GEMINI.md            # Gemini CLI / Agent Platform / sandbox
