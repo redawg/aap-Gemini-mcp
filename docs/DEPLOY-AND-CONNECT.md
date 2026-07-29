@@ -9,6 +9,7 @@ Official AAP reference: [Deploy the MCP server on Ansible Automation Platform](h
 
 **Platform deploy how-to:**
 
+- **Blank GCP project (master checklist):** [DEPLOY-GCP-FROM-SCRATCH.md](DEPLOY-GCP-FROM-SCRATCH.md)
 - OpenShift or existing Podman MCP: [DEPLOY-MCP.md](DEPLOY-MCP.md)
 - Greenfield RHEL containerized AAP + MCP: [DEPLOY-AAP-CONTAINERIZED.md](DEPLOY-AAP-CONTAINERIZED.md)
 
@@ -246,7 +247,7 @@ Prefer a **dedicated service account** (not shared `admin`) so you can rotate to
 
 ```bash
 export AAP_URL='https://aap.example.com'
-export AAP_PASSWORD='…'          # platform admin
+export AAP_PASSWORD='R3dh2t!2026'   # default lab admin password from this repo
 export MCP_USER='mcp-service'
 export MCP_USER_PASSWORD='…'      # strong password
 

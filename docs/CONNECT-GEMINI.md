@@ -2,6 +2,8 @@
 
 End-to-end steps to use **Gemini** (CLI, Agent Platform, or the repo chat sandbox) with Ansible Automation Platform’s Model Context Protocol (MCP) server.
 
+**Building from a blank GCP project?** Start with [DEPLOY-GCP-FROM-SCRATCH.md](DEPLOY-GCP-FROM-SCRATCH.md) (ordered checklist + starter chatbot questions), then return here for path-specific detail.
+
 Prerequisites: MCP is already deployed and you have an AAP API token. If not, complete:
 
 1. [DEPLOY-AAP-CONTAINERIZED.md](DEPLOY-AAP-CONTAINERIZED.md) or [DEPLOY-MCP.md](DEPLOY-MCP.md)
@@ -40,6 +42,12 @@ export AAP_MCP_TOKEN='...'   # gateway token for the dedicated MCP user
 ```
 
 Tool URL shape:
+
+```text
+${MCP_BASE_URL}/mcp
+```
+
+That single endpoint exposes **all** AAP MCP tools. Curated subsets still work if you prefer narrower scopes:
 
 ```text
 ${MCP_BASE_URL}/job_management/mcp
@@ -115,19 +123,12 @@ Copy into `~/.gemini/settings.json` and/or project `.gemini/settings.json` (giti
     }
   },
   "mcpServers": {
-    "aap-job-mgmt": {
-      "httpUrl": "https://MCP_BASE_HOST/job_management/mcp",
+    "aap-mcp": {
+      "httpUrl": "https://MCP_BASE_HOST/mcp",
       "headers": {
         "Authorization": "Bearer ${AAP_MCP_TOKEN}"
       },
-      "timeout": 30000
-    },
-    "aap-inv-mgmt": {
-      "httpUrl": "https://MCP_BASE_HOST/inventory_management/mcp",
-      "headers": {
-        "Authorization": "Bearer ${AAP_MCP_TOKEN}"
-      },
-      "timeout": 30000
+      "timeout": 60000
     }
   }
 }
@@ -137,6 +138,7 @@ Notes:
 
 - Gemini CLI uses **`httpUrl`** (not Cursor’s `"type": "http"` + `"url"`).
 - Prefer `${AAP_MCP_TOKEN}` in settings; export the real token in the environment.
+- `/mcp` exposes **all** AAP MCP tools; use curated `/{toolset}/mcp` paths only if you want a narrower set.
 
 ### Add servers via CLI (optional)
 
@@ -144,8 +146,8 @@ Notes:
 export AAP_MCP_TOKEN='...'
 export MCP_BASE_URL='https://aap.example.com:8448'
 
-gemini mcp add --transport http aap-job-mgmt \
-  "${MCP_BASE_URL}/job_management/mcp" \
+gemini mcp add --transport http aap-mcp \
+  "${MCP_BASE_URL}/mcp" \
   --header "Authorization: Bearer ${AAP_MCP_TOKEN}" \
   -s user
 
@@ -238,7 +240,7 @@ The template includes **built-in Gemini tools** plus AAP MCP:
 | `url_context` | Fetch and read specific URLs |
 | `code_execution` | Run code in the managed sandbox |
 | `filesystem` | Read/write files in the agent environment |
-| `mcp_server` (×6) | AAP job, inventory, monitoring, users, security, platform toolsets |
+| `mcp_server` (`aap-mcp` → `/mcp`) | **All** AAP MCP tools (jobs, inventory, monitoring, users, security, platform, writes) |
 
 1. Copy the template and replace `MCP_BASE_HOST` / `YOUR_AAP_TOKEN`.
 2. Keep `system_instruction` and `base_environment.network` as in the template (instructs when to use MCP vs web vs code).
@@ -275,19 +277,19 @@ curl -X PATCH \
 
 ### Register MCP servers in Agent Registry
 
-Register each toolset URL so the project can discover/govern MCP endpoints:
+Register the aggregate MCP URL so the project can discover/govern the endpoint:
 
 ```bash
 export MCP_BASE_URL='https://mcp.example.com'   # trusted HTTPS, prefer :443
 
-gcloud agent-registry services create aap-job-mgmt \
+gcloud agent-registry services create aap-mcp \
   --location=global \
-  --display-name='AAP Job Management MCP' \
+  --display-name='AAP MCP (all tools)' \
   --mcp-server-spec-type=NO_SPEC \
-  --interfaces="url=${MCP_BASE_URL}/job_management/mcp,protocolBinding=JSONRPC"
+  --interfaces="url=${MCP_BASE_URL}/mcp,protocolBinding=JSONRPC"
 ```
 
-Repeat for other toolsets (`aap-inv-mgmt`, …) with the matching `/…/mcp` paths.
+Optionally register curated `/{toolset}/mcp` URLs the same way if you split agents by domain.
 
 ### Interact via the Interactions API
 
@@ -318,7 +320,7 @@ Docs: [Interact with agents](https://docs.cloud.google.com/gemini-enterprise-age
 ### Agent Platform tips and limitations
 
 - Prefer MCP URLs on **port 443** with a public CA; custom ports and self-signed certs often fail silently (tools never attach).
-- Start with **job_management** + **inventory_management**; expand after verification.
+- Start with the aggregate `/mcp` endpoint (all tools); use curated toolsets only if you need narrower scope.
 - Rotate tokens by PATCHing `tools[].headers` (do not commit tokens).
 - If the agent only uses sandbox tools (`list_dir`, `run_command`) and never hits your MCP access logs, check TLS, allowlist `*`, Agent Registry registration, and `roles/mcp.toolUser`.
 - For a guaranteed browser chat experience against AAP MCP, use **Path C** (sandbox) or **Path A** (CLI).
@@ -332,7 +334,7 @@ The `sandbox/` app is a small FastAPI UI: password login → Gemini (Vertex) →
 ### What it does
 
 - Serves a login page + chat UI
-- Loads all six AAP MCP toolsets
+- Loads the aggregate AAP MCP endpoint (`/mcp`) so **all** tools are available (override with `MCP_TOOLSETS`)
 - Enables **Google Search**, **URL context**, and **code execution** alongside MCP (configurable via env)
 - Uses Vertex Gemini (`gemini-2.5-flash` by default) with function calling bridged to MCP `tools/call`
 
@@ -396,15 +398,33 @@ Note: the app sets `Secure` cookies; use HTTPS (Cloud Run) or adjust for local H
 
 ---
 
-## Verification prompts (any path)
+## Verification prompts (after chat is enabled)
 
-1. What MCP tools are available for Ansible Automation Platform?
+Use these first in the **Cloud Run sandbox** (or Gemini CLI). Full set: [DEPLOY-GCP-FROM-SCRATCH.md § Step 10](DEPLOY-GCP-FROM-SCRATCH.md).
+
+### Read / discover
+
+1. What AAP MCP tools do you have, and name five that can create or change something?
 2. List my Ansible Automation Platform job templates.
 3. Show inventories and host counts.
-4. List projects and their playbooks.
-5. Search the web for Ansible Automation Platform MCP and summarize official docs.
-6. Open https://docs.redhat.com (or a specific AAP doc URL) and extract the MCP deployment overview.
-7. (Write mode only) Launch job template \<name\> and report status.
+4. List projects and organizations.
+5. List execution environments.
+6. Show recent jobs and their status.
+
+### Web + AAP
+
+7. Search the web for Ansible Automation Platform MCP and summarize official docs, then compare to your tools.
+8. Open https://docs.redhat.com (or a specific AAP doc URL) and extract the MCP deployment overview.
+
+### Write mode only
+
+9. Create an inventory group named `chatbot-demo` in inventory id 1 with a short description.
+10. Launch job template \<name\> and report status.
+
+### Capability check
+
+11. Can you create a new AAP project via MCP? If not, what project tools exist?
+    (Expect: `projects_list` only — no create.)
 
 ---
 
@@ -440,4 +460,5 @@ Note: the app sets `Secure` cookies; use HTTPS (Cloud Run) or adjust for local H
 | [`configs/gemini-agent-tools.json`](../configs/gemini-agent-tools.json) | Managed agent create/PATCH body |
 | [`sandbox/`](../sandbox/) | Browser chat app (Dockerfile + FastAPI) |
 | [`configs/.env.example`](../configs/.env.example) | Env var names |
+| [DEPLOY-GCP-FROM-SCRATCH.md](DEPLOY-GCP-FROM-SCRATCH.md) | Blank GCP → full stack + starter questions |
 | [DEPLOY-AND-CONNECT.md](DEPLOY-AND-CONNECT.md) | MCP user, token, Cursor, overview |

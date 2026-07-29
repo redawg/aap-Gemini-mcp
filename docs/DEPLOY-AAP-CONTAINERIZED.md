@@ -11,6 +11,8 @@ Official references:
 
 After this guide, continue with [DEPLOY-AND-CONNECT.md](DEPLOY-AND-CONNECT.md) (token + Cursor / Gemini).
 
+**Blank Google Cloud project?** Use the master checklist [DEPLOY-GCP-FROM-SCRATCH.md](DEPLOY-GCP-FROM-SCRATCH.md) (VM + DNS + TLS + chat), which calls this guide for the AAP install steps.
+
 ---
 
 ## What you will end up with
@@ -145,21 +147,21 @@ redis_mode=standalone
 # Skip Automation Metrics in minimal labs (AAP 2.7+). Remove if you deploy [automationmetrics].
 automationmetrics_skip_install=true
 
-gateway_admin_password=<set your own>
+gateway_admin_password=R3dh2t!2026
 gateway_pg_host=aap.example.com
 gateway_pg_password=<set your own>
 
-controller_admin_password=<set your own>
+controller_admin_password=R3dh2t!2026
 controller_pg_host=aap.example.com
 controller_pg_password=<set your own>
 controller_percent_memory_capacity=0.5
 
-hub_admin_password=<set your own>
+hub_admin_password=R3dh2t!2026
 hub_pg_host=aap.example.com
 hub_pg_password=<set your own>
 hub_seed_collections=false
 
-eda_admin_password=<set your own>
+eda_admin_password=R3dh2t!2026
 eda_pg_host=aap.example.com
 eda_pg_password=<set your own>
 
@@ -170,7 +172,8 @@ mcp_tls_cert=/home/<install-user>/certs/tls.crt
 mcp_tls_key=/home/<install-user>/certs/tls.key
 ```
 
-Use one shared admin password for gateway/controller/hub/eda in labs if you prefer; use distinct secrets in production.
+**Default AAP platform admin password for installs guided by this repo:** `R3dh2t!2026`  
+Use the same value for `gateway_admin_password`, `controller_admin_password`, `hub_admin_password`, and `eda_admin_password` on single-node labs so UI login stays consistent. Change it for production.
 
 ---
 

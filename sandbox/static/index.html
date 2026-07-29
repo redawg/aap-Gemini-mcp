@@ -193,14 +193,72 @@
     }
     .hints {
       display: flex;
+      flex-direction: column;
+      gap: .55rem;
+      padding: 0 1.25rem .85rem;
+      border-top: 1px solid transparent;
+    }
+    .hints-label {
+      color: var(--muted);
+      font-size: .8rem;
+      letter-spacing: .02em;
+    }
+    .hint-row {
+      display: flex;
       flex-wrap: wrap;
       gap: .4rem;
-      padding: 0 1.25rem .85rem;
+      align-items: center;
+    }
+    .hint-row .tag {
+      font-size: .72rem;
+      color: var(--muted);
+      min-width: 3.2rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
     }
     .hints button {
       font-size: .8rem;
       padding: .3rem .7rem;
       color: var(--muted);
+    }
+    .hints button:hover {
+      color: var(--ink);
+      border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+    }
+    .welcome-starters {
+      align-self: flex-start;
+      max-width: 100%;
+      background: #182029;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: .85rem 1rem;
+      display: grid;
+      gap: .55rem;
+    }
+    .welcome-starters p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .9rem;
+      line-height: 1.4;
+    }
+    .welcome-starters ol {
+      margin: 0;
+      padding-left: 1.15rem;
+      display: grid;
+      gap: .35rem;
+      font-size: .88rem;
+      color: var(--ink);
+    }
+    .welcome-starters button.linkish {
+      all: unset;
+      cursor: pointer;
+      color: color-mix(in srgb, var(--ink) 85%, var(--accent));
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      font: inherit;
+    }
+    .welcome-starters button.linkish:hover {
+      color: #fff;
     }
   </style>
 </head>
@@ -233,15 +291,32 @@
 
     <section id="chat">
       <div id="messages"></div>
-      <div class="hints">
-        <button type="button" data-q="List my AAP job templates.">Job templates</button>
-        <button type="button" data-q="List inventories and host counts.">Inventories</button>
-        <button type="button" data-q="Show recent jobs and their status.">Recent jobs</button>
-        <button type="button" data-q="Search the web for Ansible Automation Platform MCP server overview and summarize.">Web: AAP MCP</button>
-        <button type="button" data-q="Using web search, what is new in recent Ansible Automation Platform releases? Keep it short.">Web: AAP news</button>
+      <div class="hints" aria-label="Starter questions">
+        <div class="hints-label">Starter questions — click to send</div>
+        <div class="hint-row">
+          <span class="tag">Read</span>
+          <button type="button" data-q="What AAP MCP tools do you have, and name five that can create or change something?">Tools overview</button>
+          <button type="button" data-q="List job templates by name.">Job templates</button>
+          <button type="button" data-q="List inventories and how many hosts each has.">Inventories</button>
+          <button type="button" data-q="List projects and organizations.">Projects / orgs</button>
+          <button type="button" data-q="List execution environments.">Execution envs</button>
+          <button type="button" data-q="Show recent jobs and their status.">Recent jobs</button>
+          <button type="button" data-q="List users and teams (names only).">Users / teams</button>
+        </div>
+        <div class="hint-row">
+          <span class="tag">Web</span>
+          <button type="button" data-q="Search the web for Ansible Automation Platform MCP, then compare that to the tools you actually have.">Web vs your tools</button>
+          <button type="button" data-q="Open https://docs.redhat.com and summarize how to deploy the AAP MCP server in a few bullets.">Docs: deploy MCP</button>
+        </div>
+        <div class="hint-row">
+          <span class="tag">Write</span>
+          <button type="button" data-q="Create an inventory group named chatbot-demo in inventory id 1 with description Created from sandbox starter.">Create group</button>
+          <button type="button" data-q="Launch the Demo Job Template and report the job id and status.">Launch demo JT</button>
+          <button type="button" data-q="Can you create a new AAP project via MCP? If not, what project tools exist?">Project create?</button>
+        </div>
       </div>
       <form class="composer" id="chatForm">
-        <textarea id="prompt" placeholder="Ask about AAP jobs, inventories, users…" rows="2"></textarea>
+        <textarea id="prompt" placeholder="Ask about AAP jobs, inventories, users… or click a starter above" rows="2"></textarea>
         <button class="primary" id="sendBtn" type="submit">Send</button>
       </form>
     </section>
@@ -258,6 +333,15 @@
     const logoutBtn = document.getElementById("logoutBtn");
     const resetBtn = document.getElementById("resetBtn");
     const sendBtn = document.getElementById("sendBtn");
+
+    const STARTERS = [
+      "What AAP MCP tools do you have, and name five that can create or change something?",
+      "List job templates by name.",
+      "List inventories and how many hosts each has.",
+      "Search the web for Ansible Automation Platform MCP, then compare that to the tools you actually have.",
+      "Create an inventory group named chatbot-demo in inventory id 1 with description Created from sandbox starter.",
+      "Can you create a new AAP project via MCP? If not, what project tools exist?",
+    ];
 
     function showAuthed(email) {
       login.classList.remove("show");
@@ -289,6 +373,32 @@
       messages.scrollTop = messages.scrollHeight;
     }
 
+    function showWelcome() {
+      const wrap = document.createElement("div");
+      wrap.className = "welcome-starters";
+      wrap.id = "welcomeStarters";
+      const p = document.createElement("p");
+      p.textContent = "Signed in. Click a starter below (or use the chips under the chat) to try AAP MCP + Gemini:";
+      const ol = document.createElement("ol");
+      STARTERS.forEach((q) => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "linkish";
+        btn.textContent = q;
+        btn.addEventListener("click", () => {
+          wrap.remove();
+          sendMessage(q);
+        });
+        li.appendChild(btn);
+        ol.appendChild(li);
+      });
+      wrap.appendChild(p);
+      wrap.appendChild(ol);
+      messages.appendChild(wrap);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       loginError.hidden = true;
@@ -306,7 +416,7 @@
       }
       const data = await res.json();
       showAuthed(data.email);
-      addMessage("assistant", "Signed in. Ask me to list job templates, inventories, or recent jobs.");
+      showWelcome();
     });
 
     logoutBtn.addEventListener("click", async () => {
@@ -317,11 +427,13 @@
     resetBtn.addEventListener("click", async () => {
       await fetch("/api/reset", { method: "POST" });
       messages.innerHTML = "";
-      addMessage("assistant", "Conversation cleared.");
+      showWelcome();
     });
 
     async function sendMessage(text) {
       if (!text.trim()) return;
+      const welcome = document.getElementById("welcomeStarters");
+      if (welcome) welcome.remove();
       addMessage("user", text);
       sendBtn.disabled = true;
       try {
@@ -357,7 +469,7 @@
 
     if (AUTHED) {
       showAuthed(EMAIL);
-      addMessage("assistant", "Welcome back. Try “List my AAP job templates.”");
+      showWelcome();
     } else {
       showLogin();
     }

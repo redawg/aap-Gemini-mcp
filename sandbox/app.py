@@ -27,18 +27,24 @@ GCP_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "openenv-snnzx")
 GCP_LOCATION = os.environ.get("GOOGLE_CLOUD_LOCATION", "global")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
-TOOLSETS = [
-    ("aap-job-mgmt", "job_management"),
-    ("aap-inv-mgmt", "inventory_management"),
-    ("aap-sys-mon", "system_monitoring"),
-    ("aap-user-mgmt", "user_management"),
-    ("aap-security", "security_compliance"),
-    ("aap-plat-cfg", "platform_configuration"),
-]
+# Default: the aggregate /mcp endpoint exposes every AAP MCP tool (~100+).
+# Set MCP_TOOLSETS=job_management,inventory_management,... to limit to curated subsets.
+_raw_toolsets = os.environ.get("MCP_TOOLSETS", "mcp").strip()
+TOOLSETS: list[tuple[str, str]] = []
+for part in _raw_toolsets.split(","):
+    path = part.strip().strip("/")
+    if not path:
+        continue
+    # server label for Gemini function names
+    label = "aap-mcp" if path == "mcp" else f"aap-{path.replace('_', '-')}"
+    TOOLSETS.append((label, path))
+if not TOOLSETS:
+    TOOLSETS = [("aap-mcp", "mcp")]
 
 SYSTEM_PROMPT = """You are an Ansible Automation Platform (AAP) operations assistant with Gemini AI capabilities.
 
-- Prefer AAP MCP tools for jobs, inventories, users, projects, and platform state.
+- Prefer AAP MCP tools for jobs, inventories, users, projects, credentials, settings, and platform state.
+- By default the sandbox loads the aggregate MCP endpoint (`/mcp`) so every AAP MCP tool is available.
 - MCP is in read-write mode: you may list AND create/update/launch resources (groups, launches, cancels, etc.) when the user asks.
 - For create/update tools, put fields under the tool's `requestBody` argument when the schema requires it.
 - Use Google Search (and URL context when available) for public web research: Ansible/AAP docs, CVEs, best practices, release notes.
@@ -167,7 +173,8 @@ async def _load_mcp_tools(force: bool = False) -> tuple[list[dict[str, Any]], li
 
     async with httpx.AsyncClient() as client:
         for server_name, path in TOOLSETS:
-            url = f"{MCP_BASE}/{path}/mcp"
+            # Aggregate endpoint is /mcp; curated toolsets are /{name}/mcp
+            url = f"{MCP_BASE}/mcp" if path == "mcp" else f"{MCP_BASE}/{path}/mcp"
             init, session = await _mcp_jsonrpc(
                 client,
                 url,

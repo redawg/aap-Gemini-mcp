@@ -2,9 +2,11 @@
 
 | Guide | Path |
 |-------|------|
+| **Blank GCP → full stack** | [docs/DEPLOY-GCP-FROM-SCRATCH.md](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md) |
 | Greenfield RHEL + Podman + MCP | [docs/DEPLOY-AAP-CONTAINERIZED.md](../../../docs/DEPLOY-AAP-CONTAINERIZED.md) |
 | OpenShift / brownfield MCP | [docs/DEPLOY-MCP.md](../../../docs/DEPLOY-MCP.md) |
 | User, token, Cursor, Gemini | [docs/DEPLOY-AND-CONNECT.md](../../../docs/DEPLOY-AND-CONNECT.md) |
+| Gemini paths + chat questions | [docs/CONNECT-GEMINI.md](../../../docs/CONNECT-GEMINI.md) |
 
 Official: [Deploy the MCP server](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/extending_ansible_automation_platform_with_ai/extend-assembly_deploying_ansible_mcp_server)
 
@@ -12,8 +14,11 @@ Official: [Deploy the MCP server](https://docs.redhat.com/en/documentation/red_h
 
 | Option | When | MCP base URL |
 |--------|------|----------------|
+| **Blank GCP** | New project, no AAP yet | Follow DEPLOY-GCP-FROM-SCRATCH (ask about RHEL 9+10 targets) |
 | **OpenShift** | AAP Operator on OCP / ROSA | `https://<aap-mcp-route>` |
-| **Podman on RHEL** | Containerized installer on RHEL 9/10 | `https://<fqdn>:8448` |
+| **Podman on RHEL** | Containerized installer on RHEL 9/10 | `https://<fqdn>:8448` (or LB `:443`) |
+
+Prefer clients on the aggregate endpoint: `{MCP_BASE_URL}/mcp` (all tools).
 
 ## Access required
 

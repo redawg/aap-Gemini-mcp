@@ -2,6 +2,34 @@
 
 All examples use placeholders (`aap.example.com`). Replace with your environment.
 
+## Example 0 — Blank GCP → AAP MCP → chat sandbox
+
+**Follow the master checklist:** [docs/DEPLOY-GCP-FROM-SCRATCH.md](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md)
+
+**Access**
+
+- Empty GCP project with billing + `gcloud`, **or** Red Hat **Demo Google Open Environment**  
+- IAM / roles listed in [DEPLOY-GCP-FROM-SCRATCH § GCP access](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md)  
+- RH registry credentials + AAP containerized setup tarball  
+- Public DNS name  
+- Agent asks: target hosts? → if yes, RHEL 9 + RHEL 10 VMs  
+
+**Outcome**
+
+1. RHEL VM with AAP + `ansiblemcp`  
+2. Optional: `rhel9-target` + `rhel10-target` in an AAP inventory  
+3. Trusted TLS MCP on `:443` (preferred) or `:8448`  
+4. Cloud Run sandbox URL + password  
+5. User asks starter questions from Step 10 of that guide  
+
+**First prompts after login**
+
+1. `List job templates by name.`  
+2. `What AAP MCP tools can create or change something?`  
+3. `Search the web for Ansible Automation Platform MCP and compare to your tools.`  
+
+---
+
 ## Example A — OpenShift AAP + Gemini CLI (read-only)
 
 **Access**
@@ -69,6 +97,10 @@ aap.example.com ansible_connection=local
 [all:vars]
 ansible_connection=local
 automationmetrics_skip_install=true
+gateway_admin_password=R3dh2t!2026
+controller_admin_password=R3dh2t!2026
+hub_admin_password=R3dh2t!2026
+eda_admin_password=R3dh2t!2026
 mcp_allow_write_operations=false
 mcp_tls_cert=/home/aap/certs/tls.crt
 mcp_tls_key=/home/aap/certs/tls.key
@@ -129,8 +161,8 @@ Full steps: [docs/CONNECT-GEMINI.md](../../../docs/CONNECT-GEMINI.md) Path B.
   "tools": [
     {
       "type": "mcp_server",
-      "name": "aap-job-mgmt",
-      "url": "https://mcp.example.com/job_management/mcp",
+      "name": "aap-mcp",
+      "url": "https://mcp.example.com/mcp",
       "headers": { "Authorization": "Bearer YOUR_AAP_TOKEN" }
     }
   ]
@@ -155,8 +187,8 @@ export GOOGLE_GENAI_USE_VERTEXAI=true
 export GOOGLE_CLOUD_PROJECT='your-gcp-project'
 export GEMINI_CLI_TRUST_WORKSPACE=true
 
-gemini mcp add --transport http aap-job-mgmt \
-  "${MCP_BASE_URL}/job_management/mcp" \
+gemini mcp add --transport http aap-mcp \
+  "${MCP_BASE_URL}/mcp" \
   --header "Authorization: Bearer ${AAP_MCP_TOKEN}" \
   -s user
 

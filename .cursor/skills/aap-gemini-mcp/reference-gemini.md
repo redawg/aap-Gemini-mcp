@@ -1,9 +1,11 @@
 # Connect Gemini to AAP MCP
 
-**Full guide:** [docs/CONNECT-GEMINI.md](../../../docs/CONNECT-GEMINI.md)  
-Also: [docs/DEPLOY-AND-CONNECT.md](../../../docs/DEPLOY-AND-CONNECT.md)
+**Full guides:**  
+- Blank GCP master checklist: [docs/DEPLOY-GCP-FROM-SCRATCH.md](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md)  
+- Gemini deep dive: [docs/CONNECT-GEMINI.md](../../../docs/CONNECT-GEMINI.md)  
+- Token / Cursor: [docs/DEPLOY-AND-CONNECT.md](../../../docs/DEPLOY-AND-CONNECT.md)
 
-AAP MCP is a **remote Streamable HTTP** MCP server. Gemini must use HTTP (not stdio) and send `Authorization: Bearer <AAP_TOKEN>`.
+AAP MCP is a **remote Streamable HTTP** MCP server. Gemini must use HTTP (not stdio) and send `Authorization: Bearer <AAP_TOKEN>`. Prefer `${MCP_BASE_URL}/mcp` for **all** tools.
 
 ## Paths
 
@@ -11,7 +13,7 @@ AAP MCP is a **remote Streamable HTTP** MCP server. Gemini must use HTTP (not st
 |------|-------------|
 | Gemini CLI | CONNECT-GEMINI → Path A |
 | Agent Platform managed agent | CONNECT-GEMINI → Path B |
-| Browser chat sandbox (`sandbox/`) | CONNECT-GEMINI → Path C |
+| Browser chat sandbox (`sandbox/`) | CONNECT-GEMINI → Path C (recommended first) |
 
 ## Access required
 
@@ -52,8 +54,8 @@ export GOOGLE_GENAI_USE_VERTEXAI=true
 export GOOGLE_CLOUD_PROJECT='your-project'
 export GEMINI_CLI_TRUST_WORKSPACE=true
 
-gemini mcp add --transport http aap-job-mgmt \
-  "${MCP_BASE_URL}/job_management/mcp" \
+gemini mcp add --transport http aap-mcp \
+  "${MCP_BASE_URL}/mcp" \
   --header "Authorization: Bearer ${AAP_MCP_TOKEN}" \
   -s user
 
@@ -62,7 +64,7 @@ gemini --skip-trust -y -p "List Ansible job template names using MCP."
 
 Verify prompts: list tools, list job templates, show inventories.
 
-Keep MCP server names ≤ ~20 characters.
+Prefer the aggregate `/mcp` endpoint (all tools).
 
 ---
 
@@ -72,7 +74,7 @@ Keep MCP server names ≤ ~20 characters.
 2. Enable APIs + grant `roles/mcp.toolUser`.  
 3. Fill `configs/gemini-agent-tools.json` (`MCP_BASE_HOST`, token, network allowlist `*`).  
 4. `POST .../agents` (LRO); confirm agent exists.  
-5. Register each toolset URL in Agent Registry (`gcloud agent-registry services create …`).  
+5. Register the aggregate `/mcp` URL in Agent Registry (`gcloud agent-registry services create …`).  
 6. Call Interactions API or use org chat UI if available.  
 
 For a reliable **login + chat** UI against AAP MCP, deploy **`sandbox/`** (Path C) instead of relying only on Interactions.
