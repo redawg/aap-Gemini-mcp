@@ -111,18 +111,3 @@ gemini mcp list
 ```
 
 ---
-
-## Example D — Workshop status before MCP is enabled
-
-**Symptoms**
-
-- AAP gateway up (`/api/controller/v2/ping/` → 200)  
-- No MCP in gateway service types  
-- `oc` context on a **different** cluster than AAP  
-- Guessed `*-mcp.apps…` → 503  
-
-**Unblock**
-
-1. `oc login` to the AAP cluster API  
-2. Patch `spec.mcp.disabled: false`  
-3. Copy real MCP route → configure Gemini  

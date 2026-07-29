@@ -11,7 +11,7 @@ description: >-
 
 Follow:
 
-- Deploy on OpenShift / AWS: [docs/DEPLOY-MCP-OPENSHIFT-AND-AWS.md](../../../docs/DEPLOY-MCP-OPENSHIFT-AND-AWS.md)
+- Deploy on OpenShift: [docs/DEPLOY-MCP-OPENSHIFT.md](../../../docs/DEPLOY-MCP-OPENSHIFT.md)
 - Token + Gemini connect: [docs/DEPLOY-AND-CONNECT.md](../../../docs/DEPLOY-AND-CONNECT.md)
 
 Summarized below for the agent.
@@ -21,7 +21,7 @@ Summarized below for the agent.
 Do **not** invent routes or tokens. Confirm the user has:
 
 1. **AAP** gateway URL + admin/service user (AAP 2.6+/2.7+)
-2. **OpenShift** `oc`/console on the **same** cluster as AAP (or containerized installer access)
+2. **OpenShift** `oc`/console on the **same** cluster as AAP
 3. **Gemini**: CLI and/or GCP project for Agent Platform (`roles/mcp.toolUser` as required)
 4. Network: Gemini → MCP HTTPS
 
@@ -30,8 +30,8 @@ Do **not** invent routes or tokens. Confirm the user has:
 ```
 Progress:
 - [ ] 0. AAP up (controller /api/controller/v2/ping/)
-- [ ] 1. OpenShift login to AAP cluster (or container host)
-- [ ] 2. Enable MCP (spec.mcp or inventory)
+- [ ] 1. OpenShift login to AAP cluster
+- [ ] 2. Enable MCP (spec.mcp + AnsibleMCPServer if needed)
 - [ ] 3. Record MCP_BASE_URL from *-mcp route (not gateway UI host)
 - [ ] 4. Create AAP_MCP_TOKEN
 - [ ] 5. Smoke-test MCP POST initialize
@@ -58,9 +58,7 @@ oc -n aap rollout status deploy/aap-mcp --timeout=180s
 export MCP_BASE_URL="https://$(oc -n aap get route aap-mcp -o jsonpath='{.spec.host}')"
 ```
 
-Workshop example: `https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io`
-
-Toolsets: `{BASE}/job_management/mcp` (also `{BASE}/mcp/job_management`). Containerized: port **8448**.
+Toolsets: `{BASE}/job_management/mcp` (also `{BASE}/mcp/job_management`).
 
 After flipping write mode, **delete/recreate** `AnsibleMCPServer`.
 

@@ -1,21 +1,17 @@
 # Ansible Automation Platform MCP + Gemini
 
-Deploy the AAP Model Context Protocol (MCP) server and connect **Google Gemini** (CLI or Agent Platform) so agents can query AAP and optionally run automation.
+Deploy the AAP Model Context Protocol (MCP) server on **OpenShift** and connect **Google Gemini** (CLI or Agent Platform) so agents can query AAP and optionally run automation.
 
-## Deploy MCP (OpenShift vs AWS)
+## Deploy MCP (OpenShift)
 
-**[docs/DEPLOY-MCP-OPENSHIFT-AND-AWS.md](docs/DEPLOY-MCP-OPENSHIFT-AND-AWS.md)** — how to deploy the AAP MCP server on:
-
-1. **OpenShift** (`oc` / AAP Operator + `AnsibleMCPServer`)
-2. **AWS EC2 + RHEL** (Red Hat containerized installer, port **8448**)
-3. **Amazon ECS** (standalone MCP container + ALB in front of an existing AAP)
+**[docs/DEPLOY-MCP-OPENSHIFT.md](docs/DEPLOY-MCP-OPENSHIFT.md)** — `oc` / AAP Operator + `AnsibleMCPServer`.
 
 ## Full runbook (MCP → Gemini)
 
 **[docs/DEPLOY-AND-CONNECT.md](docs/DEPLOY-AND-CONNECT.md)** — complete steps:
 
 1. What access you need (AAP, OpenShift, Gemini / Google Cloud)
-2. Enable MCP on operator or containerized AAP
+2. Enable MCP on OpenShift
 3. Create an AAP API token
 4. Connect **Gemini CLI** and/or create a **Gemini Agent** with `mcp_server` tools
 5. Verify and troubleshoot
@@ -23,8 +19,8 @@ Deploy the AAP Model Context Protocol (MCP) server and connect **Google Gemini**
 ## Quick start
 
 1. Open this repo in Cursor and invoke skill **aap-gemini-mcp**.
-2. Follow [docs/DEPLOY-AND-CONNECT.md](docs/DEPLOY-AND-CONNECT.md) (or the skill references).
-3. Export `AAP_MCP_TOKEN` and set `MCP_BASE_URL` from the OpenShift `*-mcp` route (or `:8448` on containerized).
+2. Follow [docs/DEPLOY-MCP-OPENSHIFT.md](docs/DEPLOY-MCP-OPENSHIFT.md), then [docs/DEPLOY-AND-CONNECT.md](docs/DEPLOY-AND-CONNECT.md).
+3. Export `AAP_MCP_TOKEN` and set `MCP_BASE_URL` from the OpenShift `*-mcp` route.
 4. Copy a template from `configs/`, replace placeholders.
 5. Verify: `What MCP tools are available for my Ansible Automation Platform?`
 
@@ -40,7 +36,8 @@ Deploy the AAP Model Context Protocol (MCP) server and connect **Google Gemini**
 ## Repo layout
 
 ```
-docs/DEPLOY-AND-CONNECT.md       # End-to-end deploy + Gemini agent setup
+docs/DEPLOY-MCP-OPENSHIFT.md     # OpenShift MCP deploy
+docs/DEPLOY-AND-CONNECT.md       # Token + Gemini connect
 .cursor/skills/aap-gemini-mcp/   # Cursor Agent skill
 configs/
   gemini-cli-settings.json       # Gemini CLI mcpServers template
@@ -57,17 +54,14 @@ https://<mcp-base>/<toolset>/mcp
 
 Toolsets: `job_management`, `inventory_management`, `system_monitoring`, `user_management`, `security_compliance`, `platform_configuration`
 
-| Install | Typical base |
-|---------|----------------|
-| Containerized | `https://<aap-host>:8448` |
-| OpenShift | MCP route Location (`*-mcp`) — **not** the AAP gateway UI host |
+OpenShift base: MCP route Location (`*-mcp`) — **not** the AAP gateway UI host.
 
 ## Gemini notes
 
 - **Gemini CLI** uses `httpUrl` + `headers.Authorization`.
 - **Gemini Agent Platform** uses agent `tools` entries with `"type": "mcp_server"` (Streamable HTTP only).
 - Prefer **read-only** MCP (`allow_write_operations: false`) until you intentionally enable launches/changes.
-- Never commit real tokens, kubeadmin passwords, or cloud keys (use gitignored `.env`).
+- Never commit real tokens or kubeadmin passwords (use gitignored `.env`).
 
 ## Official docs
 

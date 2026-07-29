@@ -4,7 +4,7 @@ End-to-end runbook: enable the Ansible Automation Platform (AAP) MCP server, aut
 
 Official AAP reference: [Deploy the MCP server on Ansible Automation Platform](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/extending_ansible_automation_platform_with_ai/extend-assembly_deploying_ansible_mcp_server)
 
-**Platform deploy how-tos (OpenShift `oc` vs AWS containers/ECS):** [DEPLOY-MCP-OPENSHIFT-AND-AWS.md](DEPLOY-MCP-OPENSHIFT-AND-AWS.md)
+**OpenShift deploy how-to:** [DEPLOY-MCP-OPENSHIFT.md](DEPLOY-MCP-OPENSHIFT.md)
 
 ---
 
@@ -21,15 +21,13 @@ Collect these **before** starting. Without each item, a later step will block.
 | AAP console URL (gateway) | e.g. `https://aap-aap.apps.<cluster>/` |
 | Network reachability to AAP from your laptop | Token create + API checks |
 
-### B. OpenShift (operator-based AAP — typical for workshops / AWS)
+### B. OpenShift (operator-based AAP)
 
 | Need | Why |
 |------|-----|
 | OpenShift console **or** `oc` login to the **same** cluster that hosts AAP | Edit `AnsibleAutomationPlatform` CR / view routes |
 | Permission to edit the AAP operator CR in the AAP namespace | Set `spec.mcp` |
 | Ability to list Routes / Deployments in that namespace | Copy MCP URL; confirm pods healthy |
-
-Containerized AAP on RHEL instead of OpenShift? You need SSH/inventory access to re-run the containerized installer instead of `oc`.
 
 ### C. Gemini (pick one or both)
 
@@ -55,14 +53,14 @@ Store locally in `.env` (gitignored). Templates: `configs/.env.example`.
 ```
 You → Gemini (CLI or Agent Platform)
         → HTTPS MCP tool call + Bearer token
-          → AAP MCP server (OpenShift route or :8448)
+          → AAP MCP server (OpenShift route)
             → AAP Controller / Gateway APIs (RBAC of token)
               → jobs, inventory, etc.
 ```
 
 **Dual security**
 
-1. **Server-level**: `allow_write_operations` / `mcp_allow_write_operations` (read-only vs read-write)
+1. **Server-level**: `allow_write_operations` (read-only vs read-write)
 2. **User-level**: AAP token RBAC + token scope (Read vs Write)
 
 Start **read-only** unless you intentionally want Gemini to launch jobs.
@@ -73,8 +71,8 @@ Start **read-only** unless you intentionally want Gemini to launch jobs.
 
 ```
 - [ ] 0. Confirm AAP is up (gateway + controller API)
-- [ ] 1. Access OpenShift (or containerized installer host)
-- [ ] 2. Enable MCP on AAP (operator CR or inventory)
+- [ ] 1. Access OpenShift (`oc` / console)
+- [ ] 2. Enable MCP on AAP (operator CR + AnsibleMCPServer if needed)
 - [ ] 3. Wait for MCP pods / route; record MCP_BASE_URL
 - [ ] 4. Create AAP API token → AAP_MCP_TOKEN
 - [ ] 5. Smoke-test MCP HTTPS endpoint
@@ -101,7 +99,7 @@ Expect HTTP 200 and a controller `version`. Gateway root: `${AAP_URL%/}/api/` sh
 
 ## Step 1 — Access the cluster (OpenShift)
 
-Console (workshop example):
+Console:
 
 `https://console-openshift-console.apps.<cluster>/`
 
@@ -122,13 +120,13 @@ You must be on the **same** cluster that serves the AAP URL (hostname `apps.` pr
 
 ## Step 2 — Deploy / enable the MCP server
 
-### Option A — OpenShift operator (recommended for this environment)
+Detailed steps: [DEPLOY-MCP-OPENSHIFT.md](DEPLOY-MCP-OPENSHIFT.md).
 
 1. Find the AAP instance:
 
 ```bash
 oc get ansibleautomationplatform -A
-# note NAME and NAMESPACE (workshop: namespace aap, name aap)
+# note NAME and NAMESPACE
 ```
 
 2. Enable MCP on the platform CR (start read-only):
@@ -187,21 +185,6 @@ oc -n "$NS" get deploy,pods,route | grep -i mcp
 
 5. If you **change** `allow_write_operations` after MCP already exists, delete the `AnsibleMCPServer` CR and recreate it (required by Red Hat docs).
 
-### Option B — Containerized AAP (RHEL)
-
-Add to installer inventory and re-run install/upgrade:
-
-```ini
-[ansiblemcp]
-aap.example.com
-
-[all:vars]
-mcp_allow_write_operations=false
-mcp_ignore_certificate_errors=false
-```
-
-Confirm: `podman ps` shows `ansiblemcp`. Base URL: `https://<host>:8448`.
-
 ### Optional TLS / self-signed
 
 Prefer mounting a CA (`bundle_cacert_secret` on `AnsibleMCPServer`) over disabling verification. Last resort:
@@ -221,14 +204,11 @@ spec:
 | Install | How to get it |
 |---------|----------------|
 | OpenShift | `oc -n "$NS" get route aap-mcp -o jsonpath='https://{.spec.host}{"\n"}'` or Console → **Networking → Routes** → Location for `aap-mcp` |
-| Containerized | `https://<aap-host>:8448` |
 
 Export:
 
 ```bash
 export MCP_BASE_URL='https://<mcp-host>'   # no trailing slash
-# workshop example:
-# export MCP_BASE_URL='https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io'
 ```
 
 ### Toolset URLs
@@ -270,7 +250,7 @@ Prefer **per-toolset** URLs for Gemini (smaller tool lists, clearer auth boundar
 
 ### UI
 
-1. Log into the **AAP gateway** URL as the integration user (admin for workshops; least-privilege user for production).
+1. Log into the **AAP gateway** URL as the integration user (prefer a dedicated service account with least privilege).
 2. **Access Management → Users →** select user → **Tokens → Create token**.
 3. Application: leave blank for a personal access token (or pick an OAuth app).
 4. Scope: **Read** (safe) or **Write** (only if MCP write is enabled and you need launches).
@@ -395,7 +375,7 @@ Python / Node SDK examples: Google’s [Create and manage agents](https://docs.c
 ### Agent setup tips
 
 - Start with **two** toolsets (`job_management`, `inventory_management`); add more after verification.
-- Rotate `AAP_MCP_TOKEN` by updating the agent `tools[].headers` (PATCH agent) — do not leave workshop admin tokens in long-lived agents.
+- Rotate `AAP_MCP_TOKEN` by updating the agent `tools[].headers` (PATCH agent) — do not leave long-lived admin tokens in agents.
 - If tools never appear: confirm Streamable HTTP, URL path ends with `/mcp`, Bearer token valid, and Agent Platform can resolve DNS to the OpenShift route.
 - Optional: attach project skills under `base_environment.sources` if you also ship Cursor/agent skills for AAP runbooks.
 
@@ -424,7 +404,7 @@ With write mode + Write token (careful):
 
 - Default MCP to **read-only** until needed.
 - AAP **masks** credential secrets in API/MCP responses; it does **not** mask inventory vars, extra vars, or job logs — those may go to the LLM provider.
-- Never commit `.env`, tokens, AWS keys, or kubeadmin passwords.
+- Never commit `.env`, tokens, or kubeadmin passwords.
 - Prefer a dedicated AAP service account with org/inventory limits over using `admin`.
 
 ---
@@ -434,36 +414,12 @@ With write mode + Write token (careful):
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | MCP URLs return AAP UI HTML | Using gateway host, not MCP route | Copy `*-mcp` route Location |
-| No `AnsibleMCPServer` / no mcp route | Platform CR not reconciled yet | Patch `spec.mcp`; if still missing, `oc apply` `AnsibleMCPServer` (see Step 2) |
+| No `AnsibleMCPServer` / no mcp route | Platform CR not reconciled yet | Patch `spec.mcp`; if still missing, `oc apply` `AnsibleMCPServer` (see [DEPLOY-MCP-OPENSHIFT.md](DEPLOY-MCP-OPENSHIFT.md)) |
 | `SELF_SIGNED_CERT_IN_CHAIN` | Custom OpenShift ingress CA | `bundle_cacert_secret` on MCP CR |
 | Write tools fail | Server still read-only | Set `allow_write_operations: true` and recreate MCP CR |
 | Gemini Agent cannot reach MCP | Private network / firewall | Expose HTTPS route or connect via approved path |
 | 401/403 from MCP | Bad/expired token or RBAC | Recreate token; check user permissions |
 | HTTP 406 on stdout | Non-JSON accept | Ask agent to request JSON output |
-
----
-
-## Workshop / AWS environment notes
-
-Typical Red Hat workshop shape (`cluster-kw8lw-1` example):
-
-| Item | Value pattern |
-|------|----------------|
-| AAP gateway | `https://aap-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io` |
-| OpenShift console | `https://console-openshift-console.apps.cluster-kw8lw-1.dyn.redhatworkshops.io` |
-| OpenShift API | `https://api.cluster-kw8lw-1.dyn.redhatworkshops.io:6443` |
-| MCP route | `https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io` |
-
-Verified deploy path on this workshop:
-
-1. `oc login` with kubeadmin/token to the AAP cluster  
-2. Patch `AnsibleAutomationPlatform` `spec.mcp`  
-3. If needed, `oc apply` `AnsibleMCPServer` named `aap-mcp` with `public_base_url` = gateway URL  
-4. Wait for `deploy/aap-mcp` Ready and route `aap-mcp`  
-5. Smoke-test `POST …/job_management/mcp` initialize → 200 SSE/JSON-RPC  
-6. Configure Gemini with `MCP_BASE_URL` + `AAP_MCP_TOKEN`
-
-AWS credentials in AAP are for **playbook provisioning** (Amazon credential type), not for talking to MCP. MCP auth is always the **AAP Bearer token**.
 
 ---
 

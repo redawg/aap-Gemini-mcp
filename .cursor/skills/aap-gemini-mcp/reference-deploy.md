@@ -1,6 +1,6 @@
-# Deploy AAP MCP server
+# Deploy AAP MCP server (OpenShift)
 
-Full runbook: [docs/DEPLOY-AND-CONNECT.md](../../../docs/DEPLOY-AND-CONNECT.md)
+Full OpenShift how-to: [docs/DEPLOY-MCP-OPENSHIFT.md](../../../docs/DEPLOY-MCP-OPENSHIFT.md)
 
 Official reference: [Deploy the MCP server on Ansible Automation Platform](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/extending_ansible_automation_platform_with_ai/extend-assembly_deploying_ansible_mcp_server)
 
@@ -8,9 +8,9 @@ Official reference: [Deploy the MCP server on Ansible Automation Platform](https
 
 | Role | Access |
 |------|--------|
-| Platform admin | OpenShift `oc`/console on AAP cluster **or** containerized installer host |
+| Platform admin | OpenShift `oc`/console on AAP cluster |
 | AAP admin / service user | Gateway UI/API to create tokens and verify automation |
-| Network | Client → MCP HTTPS; MCP → AAP APIs (in-cluster for operator) |
+| Network | Client → MCP HTTPS; MCP → AAP APIs (in-cluster) |
 
 ## Architecture
 
@@ -30,7 +30,7 @@ Official reference: [Deploy the MCP server on Ansible Automation Platform](https
 | `security_compliance` | Credentials metadata, security policies |
 | `platform_configuration` | Settings, licenses, EEs |
 
-URL pattern: `{MCP_BASE_URL}/{toolset}/mcp`
+URL pattern: `{MCP_BASE_URL}/{toolset}/mcp` (also `{MCP_BASE_URL}/mcp/{toolset}`)
 
 **Do not** use the AAP gateway UI hostname unless that host is also the MCP route. Wrong host returns SPA HTML.
 
@@ -38,30 +38,6 @@ URL pattern: `{MCP_BASE_URL}/{toolset}/mcp`
 
 - Gateway `service_types`: only `gateway`, `controller`, `hub`, `eda`
 - `oc get route -A | grep mcp` empty
-- Guessed `*-mcp.apps…` hosts return router 503 with no backing service
-
-## Containerized install
-
-### Inventory
-
-```ini
-[ansiblemcp]
-aap.example.com
-
-[all:vars]
-mcp_allow_write_operations=false
-mcp_ignore_certificate_errors=false
-# mcp_tls_cert=/path/to/tls.crt
-# mcp_tls_key=/path/to/tls.key
-# mcp_extra_settings='[{"setting": "DEFAULT_PAGE_SIZE", "value": "25"}]'
-```
-
-### Deploy
-
-1. Merge into containerized installer inventory  
-2. Run install/upgrade  
-3. `podman ps` → `ansiblemcp`  
-4. Base URL: `https://aap.example.com:8448`
 
 ## OpenShift / operator install
 
@@ -85,17 +61,19 @@ oc -n "$NS" get ansiblemcpserver
 oc -n "$NS" get deploy,pods,route | grep -i mcp
 ```
 
+If the CR is missing, apply `AnsibleMCPServer` with `public_base_url` set to the AAP gateway URL (see OpenShift deploy doc).
+
 ### Find URLs
 
 | Item | Where |
 |------|--------|
 | AAP UI | Route for gateway / AAP |
 | Admin password | Secret e.g. `aap-admin-password` |
-| MCP base URL | Route for `*-mcp` → Location |
+| MCP base URL | Route for `aap-mcp` → Location |
 
 ### Permission change after deploy
 
-Delete `AnsibleMCPServer` (name often ends with `-mcp`) and let the operator recreate after changing `allow_write_operations`.
+Delete `AnsibleMCPServer` (name often `aap-mcp`) and recreate after changing `allow_write_operations`.
 
 ### Custom CA
 
@@ -148,7 +126,3 @@ Not masked: hostnames, IPs, inventory vars, job logs, extra vars, survey answers
 | Write tools fail | Enable write + recreate MCP CR |
 | HTML from “MCP” URL | Wrong host — use MCP route |
 | `oc` points at different cluster | `oc login` to AAP’s API server |
-
-## Standalone community server (optional)
-
-[ansible/aap-mcp-server](https://github.com/ansible/aap-mcp-server) for local/dev only. Prefer platform MCP for workshops/production once operator MCP is available.
