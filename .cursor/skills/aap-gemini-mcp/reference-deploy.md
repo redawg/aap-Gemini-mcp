@@ -14,7 +14,7 @@ Official: [Deploy the MCP server](https://docs.redhat.com/en/documentation/red_h
 
 | Option | When | MCP base URL |
 |--------|------|----------------|
-| **Blank GCP** | New project, no AAP yet | Follow DEPLOY-GCP-FROM-SCRATCH (ask about RHEL 9+10 targets) |
+| **Blank GCP** | New project, no AAP yet | Follow DEPLOY-GCP-FROM-SCRATCH (ask missing inputs; optional RHEL 9+10 + GCP dynamic inventory) |
 | **OpenShift** | AAP Operator on OCP / ROSA | `https://<aap-mcp-route>` |
 | **Podman on RHEL** | Containerized installer on RHEL 9/10 | `https://<fqdn>:8448` (or LB `:443`) |
 

@@ -174,7 +174,7 @@ Complete **[GCP access you need](#gcp-access-you-need-state-this-up-front)** fir
 - [ ] 4. MCP user + gateway token (write scope if creating resources)
 - [ ] 5. Trusted TLS on MCP + prefer :443 for Gemini
 - [ ] 6. Enable MCP write mode (optional but needed for create/launch)
-- [ ] 6b. If targets exist: add them to AAP inventory (+ SSH creds)
+- [ ] 6b. If targets requested (or user wants cloud inventory): GCP dynamic inventory + SSH machine cred
 - [ ] 7. Path C — Cloud Run chat sandbox (recommended first chat UI)
 - [ ] 8. Path B — Agent Platform agent + Agent Registry (optional)
 - [ ] 9. Path A — Gemini CLI (optional)
@@ -254,14 +254,14 @@ echo "${VM_IP}"
 
 **Before or right after creating the AAP server, the agent MUST ask:**
 
-> Do you want managed target hosts for inventories/job runs? If yes, I will create **two** VMs: one **RHEL 9** and one **RHEL 10**.
+> Do you want managed target hosts for inventories/job runs? If yes, I will create **two** VMs (RHEL **9** and RHEL **10**) and a **GCP dynamic inventory** in AAP that discovers them.
 
 | Answer | Action |
 |--------|--------|
-| **No** / skip | Continue without extra VMs |
-| **Yes** | Create `rhel9-target` + `rhel10-target` as below, then later add them to an AAP inventory |
+| **No** / skip | Continue without extra VMs (optional GCP inventory later) |
+| **Yes** | Create `rhel9-target` + `rhel10-target`, then **Step 6b GCP dynamic inventory** |
 
-Use smaller machines than the AAP server (lab default **e2-medium**, 20 GB disk). Same zone/network; tag `aap-target` for SSH from the AAP VM (and optionally from your laptop).
+Use smaller machines than the AAP server (lab default **e2-medium**, 20 GB disk). Same zone/network; tag **`aap-target`** (dynamic inventory filter).
 
 ```bash
 # Allow SSH to targets (from anywhere in lab, or tighten to AAP VM tag later)
@@ -296,14 +296,9 @@ echo "rhel10-target=${RHEL10_TARGET_IP}"
 
 If `rhel-10` image family is unavailable in the project/region, use the latest RHEL 10 image from `rhel-cloud` (`gcloud compute images list --project=rhel-cloud --filter='family:rhel-10'`).
 
-**After AAP is up (Step 6b):**
-
-1. Ensure SSH from the AAP controller to both targets (machine cred or SSH key).
-2. Create/update an inventory (e.g. Demo Inventory) with hosts `rhel9-target` and `rhel10-target` (IPs or DNS).
-3. Optional groups: `rhel9` / `rhel10`.
-4. Verify with a ping / ad-hoc or a small job template.
-
 Record IPs in `.local/aap-gcp.env` (`RHEL9_TARGET_IP`, `RHEL10_TARGET_IP`).
+
+**Do not manually maintain a static host list as the primary inventory** when targets were requested — after AAP is installed, continue to **Step 6b (GCP dynamic inventory)**.
 
 ---
 
@@ -410,6 +405,103 @@ On Podman, changing write mode usually means recreating/restarting the `ansiblem
 
 ---
 
+## Step 6b — GCP dynamic inventory in AAP (when targets were requested)
+
+If the user said **yes** to managed targets (or asks for cloud inventory), create a **Google Compute Engine** dynamic inventory so AAP discovers VMs from GCP (including `rhel9-target` / `rhel10-target`) on sync — not a one-off static host list.
+
+Official refs: [Inventories — Google Compute Engine source](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.4/html/automation_controller_user_guide/controller-inventories), [GCE credentials](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.4/html/automation_controller_user_guide/controller-credentials).
+
+### 1. Service account for inventory sync
+
+Use the openenv deployer SA **or** create a dedicated SA with `roles/compute.viewer` (minimum) on the project, download a JSON key into `.local/` (gitignored):
+
+```bash
+export GCE_SA="aap-gce-inventory@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+gcloud iam service-accounts create aap-gce-inventory --display-name='AAP GCE inventory' || true
+gcloud projects add-iam-policy-binding "${GCP_PROJECT_ID}" \
+  --member="serviceAccount:${GCE_SA}" --role="roles/compute.viewer"
+gcloud iam service-accounts keys create .local/gce-inventory-sa.json --iam-account="${GCE_SA}"
+```
+
+### 2. Machine credential (SSH to targets)
+
+Create an AAP **Machine** credential (SSH key or password) that can log into the target VMs from the controller. Store the private key only in AAP / `.local/`, never in git.
+
+Ensure controller → targets on TCP 22 (firewall tag `aap-target` or shared VPC rules).
+
+### 3. GCE credential in AAP
+
+In the AAP UI (**Credentials** → Add → type **Google Compute Engine**):
+
+| Field | Value |
+|-------|--------|
+| Name | `GCP GCE Inventory` |
+| Service Account Email | from the JSON (`client_email`) |
+| Project | `${GCP_PROJECT_ID}` |
+| Service Account JSON File | upload `.local/gce-inventory-sa.json` |
+
+Or via Controller API (shape varies slightly by version) — prefer UI if unsure; agent may use `/api/controller/v2/credentials/` with `credential_type` for GCE after looking up the type id.
+
+### 4. Inventory + inventory source
+
+1. **Inventories** → Add → name `GCP Dynamic` (organization Default or your org).
+2. **Sources** → Add:
+   - **Source:** Google Compute Engine  
+   - **Credential:** `GCP GCE Inventory`  
+   - **Source variables** (YAML), filter to lab targets / zone:
+
+```yaml
+projects:
+  - YOUR_GCP_PROJECT_ID
+zones:
+  - us-central1-a
+filters:
+  - labels.tag is not defined OR status = RUNNING
+# Prefer network tags via hostvars after sync; plugin filters vary by version.
+# Narrow with:
+# filters:
+#   - name = rhel9-target OR name = rhel10-target
+compose:
+  ansible_host: networkInterfaces[0].accessConfigs[0].natIP
+keyed_groups:
+  - prefix: tag
+    key: tags
+hostnames:
+  - name
+```
+
+A practical lab filter when only the two targets matter:
+
+```yaml
+projects:
+  - YOUR_GCP_PROJECT_ID
+zones:
+  - YOUR_ZONE
+filters:
+  - name = rhel9-target OR name = rhel10-target
+compose:
+  ansible_host: networkInterfaces[0].accessConfigs[0].natIP
+hostnames:
+  - name
+```
+
+3. Enable **Overwrite** / **Update on launch** as appropriate for the lab.
+4. **Sync** the source. Confirm hosts `rhel9-target` and `rhel10-target` appear with public IPs.
+5. Attach the **Machine** credential on job templates that should SSH to these hosts (or set inventory-level defaults where supported).
+
+### 5. Verify
+
+```bash
+# After sync, Controller API (admin or MCP token with rights):
+curl -sk -u "admin:${AAP_PASSWORD}" \
+  "${AAP_URL%/}/api/controller/v2/inventories/?search=GCP" 
+# Or in sandbox: "List hosts in the GCP Dynamic inventory."
+```
+
+Agent must **ask** for the GCE SA JSON / project if not already available — never invent credentials.
+
+---
+
 ## Step 7 — Path C: Cloud Run chat sandbox (recommended)
 
 This is the most reliable **browser chatbot** for AAP MCP.
@@ -498,10 +590,10 @@ Use these after Path C (or CLI) is up. Copy/paste into the sandbox chat.
 11. **Create a team named `mcp-demo-team` in the Default organization (or the org id you have).**
 12. **Launch the Demo Job Template and report the job id and status.** *(may 403 if RBAC is tight)*
 
-### If target hosts were created (RHEL 9 + RHEL 10)
+### If target hosts / GCP dynamic inventory
 
-13. **List hosts in Demo Inventory — you should see `rhel9-target` and `rhel10-target`.**
-14. **Add a group `rhel9` containing the RHEL 9 target host.**
+13. **List hosts in the GCP Dynamic inventory — you should see `rhel9-target` and `rhel10-target` after sync.**
+14. **Which groups did the GCP inventory sync create for those hosts?**
 
 ### Capability checks
 
@@ -513,17 +605,16 @@ Use these after Path C (or CLI) is up. Copy/paste into the sandbox chat.
 
 ## Agent / Cursor skill behavior (blank GCP)
 
-When the user provides a blank GCP project:
+When the user provides a blank GCP project (or incomplete inputs):
 
-1. State **GCP access required** (project, billing or Demo Google Open Environment, IAM roles, quotas, Vertex). Stop if gaps remain.
-2. If the user is **Red Hat** / has demo catalog access → steer them to **Demo Google Open Environment** first.
-3. Confirm RH registry + installer tarball + DNS.
-4. **Ask whether they want managed target hosts.** If yes, create **RHEL 9 + RHEL 10** VMs (Step 1b); if no, skip.
-5. Follow **this doc’s checklist in order**; do not skip TLS before Gemini Path B/C.
-6. Prefer **Path C** for the first successful chat demo.
-7. Keep secrets in `.local/`; update configs from templates with placeholders only in git.
-8. After chat works, give the user the **starter questions** section above.
-9. Document real URLs (AAP, MCP, sandbox) and target IPs back to the user once known — never invent them earlier.
+1. **Interview first** — ask for every missing item (project, auth, DNS, registry, tarball, chat paths, write mode, **targets**). Do not invent answers.
+2. State **GCP access required**; Red Hat / demo-catalog → **Demo Google Open Environment**.
+3. **Ask about managed target inventory.** If yes → create RHEL 9 + RHEL 10 VMs (**Step 1b**) and a **GCP dynamic inventory** (**Step 6b**).
+4. Follow this doc’s checklist in order; do not skip TLS before Gemini Path B/C.
+5. Prefer **Path C** for the first successful chat demo.
+6. Keep secrets in `.local/`; placeholders only in git.
+7. After chat works, give starter questions; include inventory/host prompts when GCP sync exists.
+8. Document real URLs and target/inventory names once known.
 
 ---
 

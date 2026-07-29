@@ -8,11 +8,18 @@ All examples use placeholders (`aap.example.com`). Replace with your environment
 
 **Access**
 
+- Agent **asks for anything missing** (project, auth, DNS, registry, tarball, chat paths)  
 - Empty GCP project with billing + `gcloud`, **or** Red Hat **Demo Google Open Environment**  
 - IAM / roles listed in [DEPLOY-GCP-FROM-SCRATCH § GCP access](../../../docs/DEPLOY-GCP-FROM-SCRATCH.md)  
-- RH registry credentials + AAP containerized setup tarball  
-- Public DNS name  
-- Agent asks: target hosts? → if yes, RHEL 9 + RHEL 10 VMs  
+- Agent asks: target hosts? → if yes, RHEL 9 + RHEL 10 VMs **and** AAP **GCP dynamic inventory**  
+
+**Outcome**
+
+1. RHEL VM with AAP + `ansiblemcp`  
+2. Optional: `rhel9-target` + `rhel10-target` discovered via **GCP Dynamic** inventory sync  
+3. Trusted TLS MCP on `:443` (preferred) or `:8448`  
+4. Cloud Run sandbox URL + password  
+5. User asks starter questions from Step 10 of that guide  
 
 **Outcome**
 
