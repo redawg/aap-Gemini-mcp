@@ -4,6 +4,8 @@ End-to-end runbook: enable the Ansible Automation Platform (AAP) MCP server, aut
 
 Official AAP reference: [Deploy the MCP server on Ansible Automation Platform](https://docs.redhat.com/en/documentation/red_hat_ansible_automation_platform/2.7/html/extending_ansible_automation_platform_with_ai/extend-assembly_deploying_ansible_mcp_server)
 
+**Platform deploy how-tos (OpenShift `oc` vs AWS containers/ECS):** [DEPLOY-MCP-OPENSHIFT-AND-AWS.md](DEPLOY-MCP-OPENSHIFT-AND-AWS.md)
+
 ---
 
 ## What you need access to

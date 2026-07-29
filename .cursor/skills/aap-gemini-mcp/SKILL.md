@@ -9,7 +9,12 @@ description: >-
 
 # AAP MCP + Gemini
 
-Follow the full runbook: [docs/DEPLOY-AND-CONNECT.md](../../../docs/DEPLOY-AND-CONNECT.md) (repo root). Summarized below for the agent.
+Follow:
+
+- Deploy on OpenShift / AWS: [docs/DEPLOY-MCP-OPENSHIFT-AND-AWS.md](../../../docs/DEPLOY-MCP-OPENSHIFT-AND-AWS.md)
+- Token + Gemini connect: [docs/DEPLOY-AND-CONNECT.md](../../../docs/DEPLOY-AND-CONNECT.md)
+
+Summarized below for the agent.
 
 ## Access gate (ask if missing)
 

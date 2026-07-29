@@ -2,7 +2,15 @@
 
 Deploy the AAP Model Context Protocol (MCP) server and connect **Google Gemini** (CLI or Agent Platform) so agents can query AAP and optionally run automation.
 
-## Full runbook
+## Deploy MCP (OpenShift vs AWS)
+
+**[docs/DEPLOY-MCP-OPENSHIFT-AND-AWS.md](docs/DEPLOY-MCP-OPENSHIFT-AND-AWS.md)** — how to deploy the AAP MCP server on:
+
+1. **OpenShift** (`oc` / AAP Operator + `AnsibleMCPServer`)
+2. **AWS EC2 + RHEL** (Red Hat containerized installer, port **8448**)
+3. **Amazon ECS** (standalone MCP container + ALB in front of an existing AAP)
+
+## Full runbook (MCP → Gemini)
 
 **[docs/DEPLOY-AND-CONNECT.md](docs/DEPLOY-AND-CONNECT.md)** — complete steps:
 
