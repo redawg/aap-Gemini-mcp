@@ -1,42 +1,42 @@
 {
   "mcpServers": {
     "aap-job-mgmt": {
-      "httpUrl": "https://MCP_BASE_HOST/job_management/mcp",
+      "httpUrl": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/job_management/mcp",
       "headers": {
         "Authorization": "Bearer ${AAP_MCP_TOKEN}"
       },
       "timeout": 30000
     },
     "aap-inv-mgmt": {
-      "httpUrl": "https://MCP_BASE_HOST/inventory_management/mcp",
+      "httpUrl": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/inventory_management/mcp",
       "headers": {
         "Authorization": "Bearer ${AAP_MCP_TOKEN}"
       },
       "timeout": 30000
     },
     "aap-sys-mon": {
-      "httpUrl": "https://MCP_BASE_HOST/system_monitoring/mcp",
+      "httpUrl": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/system_monitoring/mcp",
       "headers": {
         "Authorization": "Bearer ${AAP_MCP_TOKEN}"
       },
       "timeout": 30000
     },
     "aap-user-mgmt": {
-      "httpUrl": "https://MCP_BASE_HOST/user_management/mcp",
+      "httpUrl": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/user_management/mcp",
       "headers": {
         "Authorization": "Bearer ${AAP_MCP_TOKEN}"
       },
       "timeout": 30000
     },
     "aap-security": {
-      "httpUrl": "https://MCP_BASE_HOST/security_compliance/mcp",
+      "httpUrl": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/security_compliance/mcp",
       "headers": {
         "Authorization": "Bearer ${AAP_MCP_TOKEN}"
       },
       "timeout": 30000
     },
     "aap-plat-cfg": {
-      "httpUrl": "https://MCP_BASE_HOST/platform_configuration/mcp",
+      "httpUrl": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/platform_configuration/mcp",
       "headers": {
         "Authorization": "Bearer ${AAP_MCP_TOKEN}"
       },

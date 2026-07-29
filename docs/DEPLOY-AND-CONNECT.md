@@ -126,14 +126,14 @@ You must be on the **same** cluster that serves the AAP URL (hostname `apps.` pr
 
 ```bash
 oc get ansibleautomationplatform -A
-# note NAME and NAMESPACE
+# note NAME and NAMESPACE (workshop: namespace aap, name aap)
 ```
 
-2. Enable MCP (start read-only):
+2. Enable MCP on the platform CR (start read-only):
 
 ```bash
-NS=<aap-namespace>
-NAME=<aap-cr-name>
+NS=aap
+NAME=aap
 
 oc -n "$NS" patch ansibleautomationplatform "$NAME" --type merge -p '
 spec:
@@ -152,15 +152,38 @@ spec:
     allow_write_operations: false
 ```
 
-3. Confirm the operator creates MCP:
+3. If `AnsibleMCPServer` does **not** appear within a few minutes, create it directly (AAP 2.6 Lightspeed/MCP operator reconciles this CR). Use the **AAP gateway** URL as `public_base_url`:
+
+```bash
+AAP_HOST=$(oc -n "$NS" get route aap -o jsonpath='{.spec.host}')
+
+cat <<EOF | oc apply -f -
+apiVersion: mcpserver.ansible.com/v1alpha1
+kind: AnsibleMCPServer
+metadata:
+  name: aap-mcp
+  namespace: ${NS}
+spec:
+  public_base_url: "https://${AAP_HOST}"
+  allow_write_operations: false
+  # Optional if MCP→AAP TLS fails with self-signed/custom CA:
+  # extra_settings:
+  #   - setting: IGNORE_CERTIFICATE_ERRORS
+  #     value: true
+EOF
+```
+
+The Lightspeed operator (`ansible-lightspeed-operator-controller-manager`) runs the `mcpserver` role and creates Deployment, Service, and Route.
+
+4. Confirm MCP workloads:
 
 ```bash
 oc -n "$NS" get ansiblemcpserver
-oc -n "$NS" get deploy,pods | grep -i mcp
-oc -n "$NS" get route | grep -i mcp
+oc -n "$NS" rollout status deploy/aap-mcp --timeout=180s
+oc -n "$NS" get deploy,pods,route | grep -i mcp
 ```
 
-4. If you **change** `allow_write_operations` after MCP already exists, delete the `AnsibleMCPServer` CR and let the operator recreate it (required by Red Hat docs).
+5. If you **change** `allow_write_operations` after MCP already exists, delete the `AnsibleMCPServer` CR and recreate it (required by Red Hat docs).
 
 ### Option B — Containerized AAP (RHEL)
 
@@ -195,27 +218,40 @@ spec:
 
 | Install | How to get it |
 |---------|----------------|
-| OpenShift | `oc -n "$NS" get route -l app.kubernetes.io/name=mcp -o jsonpath='{.items[0].spec.host}{"\n"}'` or Console → **Networking → Routes** → copy Location for `*-mcp` |
+| OpenShift | `oc -n "$NS" get route aap-mcp -o jsonpath='https://{.spec.host}{"\n"}'` or Console → **Networking → Routes** → Location for `aap-mcp` |
 | Containerized | `https://<aap-host>:8448` |
 
 Export:
 
 ```bash
 export MCP_BASE_URL='https://<mcp-host>'   # no trailing slash
+# workshop example:
+# export MCP_BASE_URL='https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io'
 ```
 
 ### Toolset URLs
 
+Both path styles work on current AAP MCP; pick one style and use it consistently:
+
 ```
+# Style A (Red Hat client examples)
 ${MCP_BASE_URL}/job_management/mcp
 ${MCP_BASE_URL}/inventory_management/mcp
 ${MCP_BASE_URL}/system_monitoring/mcp
 ${MCP_BASE_URL}/user_management/mcp
 ${MCP_BASE_URL}/security_compliance/mcp
 ${MCP_BASE_URL}/platform_configuration/mcp
+
+# Style B (MCP server root page)
+${MCP_BASE_URL}/mcp/job_management
+${MCP_BASE_URL}/mcp/inventory_management
+...
+
+# All tools
+${MCP_BASE_URL}/mcp
 ```
 
-Some builds also expose a combined `/mcp` endpoint. Prefer **per-toolset** URLs for Gemini (smaller tool lists, clearer auth boundaries).
+Prefer **per-toolset** URLs for Gemini (smaller tool lists, clearer auth boundaries).
 
 | Toolset | Gemini can… |
 |---------|-------------|
@@ -396,7 +432,7 @@ With write mode + Write token (careful):
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
 | MCP URLs return AAP UI HTML | Using gateway host, not MCP route | Copy `*-mcp` route Location |
-| No `AnsibleMCPServer` / no mcp route | `spec.mcp.disabled` still true / unsupported version | Patch CR; confirm AAP 2.6.4+ / 2.7 |
+| No `AnsibleMCPServer` / no mcp route | Platform CR not reconciled yet | Patch `spec.mcp`; if still missing, `oc apply` `AnsibleMCPServer` (see Step 2) |
 | `SELF_SIGNED_CERT_IN_CHAIN` | Custom OpenShift ingress CA | `bundle_cacert_secret` on MCP CR |
 | Write tools fail | Server still read-only | Set `allow_write_operations: true` and recreate MCP CR |
 | Gemini Agent cannot reach MCP | Private network / firewall | Expose HTTPS route or connect via approved path |
@@ -407,20 +443,23 @@ With write mode + Write token (careful):
 
 ## Workshop / AWS environment notes
 
-Typical Red Hat workshop shape:
+Typical Red Hat workshop shape (`cluster-kw8lw-1` example):
 
-| Item | Example pattern |
-|------|-----------------|
-| AAP gateway | `https://aap-aap.apps.cluster-….dyn.redhatworkshops.io` |
-| OpenShift console | `https://console-openshift-console.apps.cluster-….dyn.redhatworkshops.io` |
-| OpenShift API | `https://api.cluster-…:6443` |
-| MCP route (after enable) | Often `https://<aap-name>-mcp.apps.cluster-…/` (confirm with `oc get route`) |
+| Item | Value pattern |
+|------|----------------|
+| AAP gateway | `https://aap-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io` |
+| OpenShift console | `https://console-openshift-console.apps.cluster-kw8lw-1.dyn.redhatworkshops.io` |
+| OpenShift API | `https://api.cluster-kw8lw-1.dyn.redhatworkshops.io:6443` |
+| MCP route | `https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io` |
 
-Current blockers until MCP is enabled:
+Verified deploy path on this workshop:
 
-1. `oc login` to the **AAP’s** cluster (not a different workshop cluster context).
-2. Patch `spec.mcp.disabled: false`.
-3. Record the new MCP route; then configure Gemini.
+1. `oc login` with kubeadmin/token to the AAP cluster  
+2. Patch `AnsibleAutomationPlatform` `spec.mcp`  
+3. If needed, `oc apply` `AnsibleMCPServer` named `aap-mcp` with `public_base_url` = gateway URL  
+4. Wait for `deploy/aap-mcp` Ready and route `aap-mcp`  
+5. Smoke-test `POST …/job_management/mcp` initialize → 200 SSE/JSON-RPC  
+6. Configure Gemini with `MCP_BASE_URL` + `AAP_MCP_TOKEN`
 
 AWS credentials in AAP are for **playbook provisioning** (Amazon credential type), not for talking to MCP. MCP auth is always the **AAP Bearer token**.
 

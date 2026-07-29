@@ -6,7 +6,7 @@
     {
       "type": "mcp_server",
       "name": "aap-job-mgmt",
-      "url": "https://MCP_BASE_HOST/job_management/mcp",
+      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/job_management/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_AAP_TOKEN"
       }
@@ -14,7 +14,7 @@
     {
       "type": "mcp_server",
       "name": "aap-inv-mgmt",
-      "url": "https://MCP_BASE_HOST/inventory_management/mcp",
+      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/inventory_management/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_AAP_TOKEN"
       }
@@ -22,7 +22,7 @@
     {
       "type": "mcp_server",
       "name": "aap-sys-mon",
-      "url": "https://MCP_BASE_HOST/system_monitoring/mcp",
+      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/system_monitoring/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_AAP_TOKEN"
       }
@@ -30,7 +30,7 @@
     {
       "type": "mcp_server",
       "name": "aap-user-mgmt",
-      "url": "https://MCP_BASE_HOST/user_management/mcp",
+      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/user_management/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_AAP_TOKEN"
       }
@@ -38,7 +38,7 @@
     {
       "type": "mcp_server",
       "name": "aap-security",
-      "url": "https://MCP_BASE_HOST/security_compliance/mcp",
+      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/security_compliance/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_AAP_TOKEN"
       }
@@ -46,7 +46,7 @@
     {
       "type": "mcp_server",
       "name": "aap-plat-cfg",
-      "url": "https://MCP_BASE_HOST/platform_configuration/mcp",
+      "url": "https://aap-mcp-aap.apps.cluster-kw8lw-1.dyn.redhatworkshops.io/platform_configuration/mcp",
       "headers": {
         "Authorization": "Bearer YOUR_AAP_TOKEN"
       }
